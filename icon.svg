@@ -1,0 +1,5 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ludos Mechanicus">
+  <rect width="512" height="512" fill="#0f172a"/>
+  <polyline points="147,288 256,166 365,288" fill="none" stroke="#2563eb" stroke-width="50" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="147,370 256,247 365,370" fill="none" stroke="#06b6d4" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

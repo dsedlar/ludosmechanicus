@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ludos Mechanicus: Imperium Totale</title>
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Ludos">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1"></script>
     <!-- Firebase (compat build — exposes global `firebase`) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -484,7 +491,14 @@
     <div class="container" id="app-root" style="display:none;">
         <div class="header">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
-                <h1>Ludos Mechanicus: Imperium Totale</h1>
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <svg width="44" height="44" viewBox="0 0 512 512" style="border-radius:10px; flex-shrink:0;" aria-hidden="true">
+                        <rect width="512" height="512" fill="#0f172a"/>
+                        <polyline points="147,288 256,166 365,288" fill="none" stroke="#2563eb" stroke-width="50" stroke-linecap="round" stroke-linejoin="round"/>
+                        <polyline points="147,370 256,247 365,370" fill="none" stroke="#06b6d4" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <h1>Ludos Mechanicus: Imperium Totale</h1>
+                </div>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span id="sync-status" class="badge" style="background:var(--bg-hover);">Offline</span>
                     <button class="btn-secondary" onclick="doLogout()">Log out</button>
