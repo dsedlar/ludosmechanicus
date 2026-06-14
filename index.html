@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ludos Mechanicus: Imperium Totale</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1"></script>
+    <!-- Firebase (compat build — exposes global `firebase`) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <style>
         :root {
             --primary: #2563eb;
@@ -459,9 +463,33 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- LOGIN GATE -->
+    <div id="login-overlay" style="display:none; position:fixed; inset:0; background:var(--bg-dark); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:32px; width:100%; max-width:360px;">
+            <h2 style="margin-bottom:8px; color:var(--text-primary);">Ludos Mechanicus</h2>
+            <p style="color:var(--text-secondary); font-size:13px; margin-bottom:20px;">Sign in to sync your data across all your devices.</p>
+            <div class="form-group" style="margin-bottom:12px;">
+                <label>Email</label>
+                <input type="text" id="login-email" autocomplete="username" placeholder="you@email.com">
+            </div>
+            <div class="form-group" style="margin-bottom:16px;">
+                <label>Password</label>
+                <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+            </div>
+            <button class="btn-primary" style="width:100%;" onclick="doLogin()">Sign In</button>
+            <div id="login-error" style="color:#fca5a5; font-size:12px; margin-top:12px;"></div>
+        </div>
+    </div>
+
+    <div class="container" id="app-root" style="display:none;">
         <div class="header">
-            <h1>Ludos Mechanicus: Imperium Totale</h1>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+                <h1>Ludos Mechanicus: Imperium Totale</h1>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span id="sync-status" class="badge" style="background:var(--bg-hover);">Offline</span>
+                    <button class="btn-secondary" onclick="doLogout()">Log out</button>
+                </div>
+            </div>
         </div>
 
         <div class="quick-stats">
@@ -1152,8 +1180,13 @@
             };
         }
 
-        function saveData(data) {
+        function saveLocal(data) {
             localStorage.setItem('golfUltimateData', JSON.stringify(data));
+        }
+
+        function saveData(data) {
+            saveLocal(data);   // instant offline cache
+            cloudSave();       // sync to Firestore (debounced)
         }
 
         let appData = loadData();
@@ -2388,7 +2421,159 @@
             selectDay(1);
         }
 
-        document.addEventListener('DOMContentLoaded', init);
+        // ============ FIREBASE CLOUD SYNC ============
+        const firebaseConfig = {
+            apiKey: "AIzaSyBKzUeMo12L8guhukBiCj-8FngxfZ3yfpM",
+            authDomain: "ludosmechanicus.firebaseapp.com",
+            projectId: "ludosmechanicus",
+            storageBucket: "ludosmechanicus.firebasestorage.app",
+            messagingSenderId: "268339871338",
+            appId: "1:268339871338:web:5b16128e554a9c6b5ed413"
+        };
+
+        let auth = null, db = null, currentUser = null;
+        let unsubscribeSnapshot = null, cloudSaveTimer = null;
+
+        function setSyncStatus(state) {
+            const el = document.getElementById('sync-status');
+            if (!el) return;
+            const map = {
+                offline:    { t: 'Offline',      c: 'var(--bg-hover)' },
+                connecting: { t: 'Connecting…',  c: 'var(--warning)' },
+                synced:     { t: '✓ Synced',     c: 'var(--success)' },
+                saving:     { t: 'Saving…',      c: 'var(--warning)' },
+                error:      { t: '⚠ Sync error', c: 'var(--accent-power)' }
+            };
+            const s = map[state] || map.offline;
+            el.textContent = s.t;
+            el.style.background = s.c;
+        }
+
+        // Make sure every array the app expects exists (cloud data may be partial)
+        function ensureShape(d) {
+            d.strength    = d.strength    || {};
+            d.cardio      = d.cardio      || [];
+            d.golf        = d.golf        || [];
+            d.oura        = d.oura        || [];
+            d.visceral    = d.visceral    || [];
+            d.ouraApiData = d.ouraApiData || [];
+        }
+
+        function userDoc() {
+            return db.collection('users').doc(currentUser.uid);
+        }
+
+        // Debounced push of the whole appData blob to Firestore
+        function cloudSave() {
+            if (!currentUser || !db) return;   // not logged in → localStorage only
+            clearTimeout(cloudSaveTimer);
+            setSyncStatus('saving');
+            cloudSaveTimer = setTimeout(() => {
+                userDoc().set({
+                    appData: appData,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true })
+                .then(() => setSyncStatus('synced'))
+                .catch(err => { console.error('Cloud save failed:', err); setSyncStatus('error'); });
+            }, 700);
+        }
+
+        // Re-render everything after data arrives from another device
+        function refreshUI() {
+            if (appData.currentWeek) {
+                document.getElementById('current-week-num').textContent = appData.currentWeek.weekNum;
+            }
+            renderAllGolfTable();
+            renderOuraApiTable();
+            renderCardioHistory();
+            renderTrainingLog();
+            updateStats();
+            selectDay(1);
+        }
+
+        function attachCloud() {
+            setSyncStatus('connecting');
+            userDoc().get().then(doc => {
+                if (doc.exists && doc.data().appData) {
+                    appData = doc.data().appData;     // cloud wins
+                    ensureShape(appData);
+                    saveLocal(appData);
+                } else {
+                    ensureShape(appData);             // first login → migrate local data UP
+                    userDoc().set({
+                        appData: appData,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                }
+                init();
+                setSyncStatus('synced');
+                // Live updates from other devices
+                if (unsubscribeSnapshot) unsubscribeSnapshot();
+                unsubscribeSnapshot = userDoc().onSnapshot(snap => {
+                    if (snap.metadata.hasPendingWrites) return;   // ignore our own write echo
+                    const data = snap.data();
+                    if (data && data.appData) {
+                        appData = data.appData;
+                        ensureShape(appData);
+                        saveLocal(appData);
+                        refreshUI();
+                    }
+                }, err => { console.error('Snapshot error:', err); setSyncStatus('error'); });
+            }).catch(err => {
+                console.error('Cloud load failed:', err);
+                setSyncStatus('error');
+                init();   // still usable from the local cache
+            });
+        }
+
+        function showLogin() {
+            document.getElementById('login-overlay').style.display = 'flex';
+            document.getElementById('app-root').style.display = 'none';
+        }
+        function showApp() {
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('app-root').style.display = 'block';
+        }
+
+        function doLogin() {
+            const email = document.getElementById('login-email').value.trim();
+            const pass  = document.getElementById('login-password').value;
+            const errEl = document.getElementById('login-error');
+            errEl.textContent = '';
+            if (!email || !pass) { errEl.textContent = 'Enter your email and password.'; return; }
+            auth.signInWithEmailAndPassword(email, pass)
+                .catch(err => { errEl.textContent = err.message; });
+        }
+
+        function doLogout() {
+            if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+            if (auth) auth.signOut();
+        }
+
+        // Local-only fallback if Firebase can't load (e.g. offline)
+        function startOffline() {
+            setSyncStatus('offline');
+            showApp();
+            init();
+        }
+
+        // Bootstrap
+        (function bootstrap() {
+            if (typeof firebase === 'undefined') { startOffline(); return; }
+            firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            db = firebase.firestore();
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    currentUser = user;
+                    showApp();
+                    attachCloud();
+                } else {
+                    currentUser = null;
+                    showLogin();
+                }
+            });
+        })();
     </script>
 </body>
 </html>
