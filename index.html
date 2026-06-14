@@ -752,7 +752,11 @@
                 </div>
             </div>
 
-            <div class="section"
+            <div class="section">
+                <div class="section-title">
+                    <div class="section-icon">⚖️</div>
+                    Log Body Composition
+                </div>
                 <div style="background: var(--bg-hover); padding: 20px; border-radius: var(--radius); margin-bottom: 20px;">
                     <div class="form-row">
                         <div class="form-group">
@@ -767,9 +771,13 @@
                             <label>Body Fat %</label>
                             <input type="number" id="weight-bf" step="0.1" placeholder="34.1">
                         </div>
+                        <div class="form-group">
+                            <label>Visceral Fat</label>
+                            <input type="number" id="weight-visceral" step="0.1" placeholder="12">
+                        </div>
                     </div>
                     <div class="form-row">
-                        <button class="btn-primary" onclick="logWeight()" style="margin-top: 12px;">Log Weight</button>
+                        <button class="btn-primary" onclick="logWeight()" style="margin-top: 12px;">Log Body Composition</button>
                     </div>
                     <div id="weight-message" style="margin-top: 12px;"></div>
                 </div>
@@ -1374,6 +1382,7 @@
             const date = document.getElementById('weight-date').value;
             const weight = parseFloat(document.getElementById('weight-lbs').value);
             const bf = parseFloat(document.getElementById('weight-bf').value);
+            const visceral = parseFloat(document.getElementById('weight-visceral').value);
 
             if (!date || !weight) {
                 showMessage('weight-message', 'error', 'Date and weight required');
@@ -1381,17 +1390,19 @@
             }
 
             appData.ouraApiData = appData.ouraApiData || [];
-            
+
             // Check if entry for this date exists
             const existing = appData.ouraApiData.find(o => o.date === date);
             if (existing) {
                 existing.weight = weight;
                 existing.bodyFat = bf || existing.bodyFat;
+                if (!isNaN(visceral)) existing.visceral = visceral;
             } else {
                 appData.ouraApiData.push({
                     date: date,
                     weight: weight,
                     bodyFat: bf,
+                    visceral: !isNaN(visceral) ? visceral : 0,
                     sleepScore: 0,
                     sleepDuration: 0,
                     hrv: 0,
@@ -1410,6 +1421,7 @@
             // Clear form
             document.getElementById('weight-lbs').value = '';
             document.getElementById('weight-bf').value = '';
+            document.getElementById('weight-visceral').value = '';
         }
 
         function logOuraDataManual() {
@@ -1897,41 +1909,71 @@
             return denom1 && denom2 ? numerator / (denom1 * denom2) : null;
         }
 
+        // Oura entry recorded on a given date (or null)
+        function ouraOn(date) {
+            return appData.ouraApiData.find(o => o.date === date) || null;
+        }
+
+        // Golf rounds paired with that day's HRV — real (hrv, score) points
+        function hrvGolfPairs() {
+            const pairs = [];
+            appData.golf.forEach(g => {
+                if (!g.score) return;
+                const o = ouraOn(g.date);
+                if (o && o.hrv > 0) pairs.push({ hrv: o.hrv, score: g.score, date: g.date });
+            });
+            return pairs;
+        }
+
+        // Visceral-fat readings over time (chronological), from body-composition logs
+        function getVisceralSeries() {
+            return appData.ouraApiData
+                .filter(o => o.visceral > 0)
+                .map(o => ({ date: o.date, level: o.visceral }))
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+        }
+
         function renderCorrelations() {
             const container = document.getElementById('correlations-container');
             container.innerHTML = '';
 
-            // HRV vs Golf Score
-            const hrvs = appData.ouraApiData.map(o => o.hrv).filter(h => h > 0);
-            const golfScores = appData.golf.slice(0, hrvs.length).map(g => g.score);
-            const hrvGolfCorr = calculateCorrelation(hrvs, golfScores);
+            // HRV vs Golf Score — each round matched to that day's Oura HRV
+            const hgPairs = hrvGolfPairs();
+            const hrvGolfCorr = calculateCorrelation(hgPairs.map(p => p.hrv), hgPairs.map(p => p.score));
 
-            // Sleep Score vs Strength Completion
-            const strengthData = loadStrengthData();
-            const sleepScores = appData.ouraApiData.map(o => o.sleepScore).filter(s => s > 0);
-            const strengthDays = Array(sleepScores.length).fill(2); // dummy data
-            const sleepStrengthCorr = calculateCorrelation(sleepScores, strengthDays);
+            // Sleep Score vs Readiness — same Oura rows where both exist
+            const srRows = appData.ouraApiData.filter(o => o.sleepScore > 0 && o.readiness > 0);
+            const sleepReadinessCorr = calculateCorrelation(srRows.map(o => o.sleepScore), srRows.map(o => o.readiness));
 
-            // Cardio Volume vs Visceral Fat
-            const cardioPerWeek = appData.cardio.length;
-            const viscFeats = appData.visceral.map(v => v.level);
-            const cardioVisceralCorr = viscFeats.length > 1 ? viscFeats.slice(-1)[0] - viscFeats[0] : null;
+            // Cardio Volume vs Visceral Fat — cardio sessions in the 7 days before each measurement
+            const visSeries = getVisceralSeries();
+            const cardioCounts = visSeries.map(v => appData.cardio.filter(c => {
+                const diff = (new Date(v.date) - new Date(c.date)) / (1000 * 60 * 60 * 24);
+                return diff >= 0 && diff <= 7;
+            }).length);
+            const cardioVisceralCorr = calculateCorrelation(cardioCounts, visSeries.map(v => v.level));
 
             const correlations = [
                 {
-                    name: 'HRV → Golf Performance',
+                    name: 'HRV → Golf Score',
                     value: hrvGolfCorr,
-                    description: 'Higher HRV (>50) tends to correlate with better golf scores'
+                    description: hgPairs.length < 2
+                        ? `Need ≥2 rounds played on days with Oura HRV logged (have ${hgPairs.length}).`
+                        : `Negative is good: higher HRV → lower (better) scores. Based on ${hgPairs.length} matched rounds.`
                 },
                 {
-                    name: 'Sleep Score → Workout Readiness',
-                    value: sleepStrengthCorr,
-                    description: 'Sleep score above 80 often pairs with better workout performance'
+                    name: 'Sleep Score → Readiness',
+                    value: sleepReadinessCorr,
+                    description: srRows.length < 2
+                        ? `Need ≥2 days with both sleep & readiness scores (have ${srRows.length}).`
+                        : `Positive is good: better sleep → higher Oura readiness. ${srRows.length} days.`
                 },
                 {
-                    name: 'Cardio Volume → Visceral Fat Reduction',
+                    name: 'Cardio Volume → Visceral Fat',
                     value: cardioVisceralCorr,
-                    description: `More cardio sessions show promise for visceral fat loss (trend: ${cardioVisceralCorr > 0 ? 'decreasing ↓' : 'increasing ↑'})`
+                    description: visSeries.length < 2
+                        ? `Log visceral fat on ≥2 dates to see this (have ${visSeries.length}).`
+                        : `Negative is good: more cardio → lower visceral fat. ${visSeries.length} measurements.`
                 }
             ];
 
@@ -1954,17 +1996,16 @@
 
         function renderHrvGolfChart() {
             const ctx = document.getElementById('hrvGolfChart');
-            if (!ctx || appData.ouraApiData.length === 0) return;
-
-            const hrvData = appData.ouraApiData.filter(o => o.hrv > 0).map(o => ({ x: o.hrv, y: Math.random() * 10 + 70 }));
+            if (!ctx) return;
+            const pairs = hrvGolfPairs();
 
             if (window.hrvGolfInstance) window.hrvGolfInstance.destroy();
             window.hrvGolfInstance = new Chart(ctx, {
                 type: 'scatter',
                 data: {
                     datasets: [{
-                        label: 'HRV vs Simulated Performance',
-                        data: hrvData,
+                        label: 'HRV vs Golf Score',
+                        data: pairs.map(p => ({ x: p.hrv, y: p.score })),
                         backgroundColor: 'rgba(236, 72, 153, 0.6)',
                         borderColor: '#ec4899',
                         borderWidth: 2,
@@ -1974,14 +2015,15 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    plugins: { tooltip: { callbacks: { label: c => `HRV ${c.parsed.x}, Score ${c.parsed.y}` } } },
                     scales: {
                         x: {
-                            title: { display: true, text: 'HRV', color: '#cbd5e1' },
+                            title: { display: true, text: 'HRV (Oura, round day)', color: '#cbd5e1' },
                             ticks: { color: '#cbd5e1' },
                             grid: { color: '#334155' }
                         },
                         y: {
-                            title: { display: true, text: 'Performance Score', color: '#cbd5e1' },
+                            title: { display: true, text: 'Golf Score (lower = better)', color: '#cbd5e1' },
                             ticks: { color: '#cbd5e1' },
                             grid: { color: '#334155' }
                         }
@@ -1994,9 +2036,10 @@
             const ctx = document.getElementById('sleepPerformanceChart');
             if (!ctx || appData.ouraApiData.length === 0) return;
 
-            const dates = appData.ouraApiData.slice(0, 14).map(o => o.date);
-            const sleepScores = appData.ouraApiData.slice(0, 14).map(o => o.sleepScore);
-            const performance = sleepScores.map(s => s > 75 ? 8 : 6); // Dummy correlation
+            const rows = appData.ouraApiData.slice(0, 14).reverse(); // oldest → newest
+            const dates = rows.map(o => o.date);
+            const sleepScores = rows.map(o => o.sleepScore || null);
+            const readiness = rows.map(o => o.readiness || null);
 
             if (window.sleepPerfInstance) window.sleepPerfInstance.destroy();
             window.sleepPerfInstance = new Chart(ctx, {
@@ -2009,18 +2052,18 @@
                             data: sleepScores,
                             borderColor: '#ec4899',
                             backgroundColor: 'rgba(236, 72, 153, 0.1)',
-                            yAxisID: 'y',
                             borderWidth: 2,
-                            tension: 0.3
+                            tension: 0.3,
+                            spanGaps: true
                         },
                         {
-                            label: 'Workout Readiness',
-                            data: performance,
+                            label: 'Readiness Score',
+                            data: readiness,
                             borderColor: '#06b6d4',
                             backgroundColor: 'rgba(6, 182, 212, 0.1)',
-                            yAxisID: 'y1',
                             borderWidth: 2,
-                            tension: 0.3
+                            tension: 0.3,
+                            spanGaps: true
                         }
                     ]
                 },
@@ -2028,8 +2071,7 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: { position: 'left', ticks: { color: '#cbd5e1' }, grid: { color: '#334155' } },
-                        y1: { position: 'right', ticks: { color: '#cbd5e1' }, grid: { display: false } }
+                        y: { min: 0, max: 100, ticks: { color: '#cbd5e1' }, grid: { color: '#334155' } }
                     }
                 }
             });
@@ -2037,18 +2079,15 @@
 
         function renderCardioViscerChart() {
             const ctx = document.getElementById('cardioViscerChart');
-            if (!ctx || appData.visceral.length === 0) return;
+            const series = getVisceralSeries();
+            if (!ctx || series.length === 0) return;
 
-            const dates = appData.visceral.map(v => v.date);
-            const visceral = appData.visceral.map(v => v.level);
-            const cardioByDate = dates.map(d => {
-                const cardioThatWeek = appData.cardio.filter(c => {
-                    const cd = new Date(c.date);
-                    const dd = new Date(d);
-                    return (dd - cd) / (1000 * 60 * 60 * 24) <= 7;
-                }).length;
-                return cardioThatWeek;
-            });
+            const dates = series.map(v => v.date);
+            const visceral = series.map(v => v.level);
+            const cardioByDate = series.map(v => appData.cardio.filter(c => {
+                const diff = (new Date(v.date) - new Date(c.date)) / (1000 * 60 * 60 * 24);
+                return diff >= 0 && diff <= 7;
+            }).length);
 
             if (window.cardioViscInstance) window.cardioViscInstance.destroy();
             window.cardioViscInstance = new Chart(ctx, {
@@ -2232,7 +2271,8 @@
             const avgSleep = thisWeekOura.length > 0 ? (thisWeekOura.reduce((sum, o) => sum + o.sleepDuration, 0) / thisWeekOura.length).toFixed(1) : '—';
             const avgHrv = thisWeekOura.length > 0 ? (thisWeekOura.reduce((sum, o) => sum + o.hrv, 0) / thisWeekOura.length).toFixed(0) : '—';
             const totalCardioMin = thisWeekCardio.reduce((sum, c) => sum + c.duration, 0);
-            const latestVisceral = appData.visceral.length > 0 ? appData.visceral[0].level : '—';
+            const visSeries = getVisceralSeries();
+            const latestVisceral = visSeries.length > 0 ? visSeries[visSeries.length - 1].level : '—';
 
             const summary = `
 <div class="summary-box">
@@ -2267,7 +2307,7 @@
 <div class="summary-box">
     <div class="summary-title">🏃 Health Metrics</div>
     <div class="summary-text">
-        <strong>Visceral Fat:</strong> ${latestVisceral}${appData.visceral.length > 1 ? ` (${(appData.visceral[0].level - appData.visceral[1].level).toFixed(1)} change)` : ''}<br>
+        <strong>Visceral Fat:</strong> ${latestVisceral}${visSeries.length > 1 ? ` (${(visSeries[visSeries.length - 1].level - visSeries[visSeries.length - 2].level).toFixed(1)} change)` : ''}<br>
         <strong>Cardio Consistency:</strong> ${thisWeekCardio.length > 2 ? '✓ Good consistency' : 'Increase sessions'}<br>
         <strong>Training Load:</strong> ${totalCardioMin + (thisWeekStrength * 60)} total minutes<br>
     </div>
@@ -2386,8 +2426,9 @@
                 document.getElementById('sleep-score').textContent = avgSleep.toFixed(0);
             }
 
-            if (appData.visceral.length > 0) {
-                document.getElementById('visceral-fat').textContent = appData.visceral[0].level.toFixed(1);
+            const visList = getVisceralSeries();
+            if (visList.length > 0) {
+                document.getElementById('visceral-fat').textContent = visList[visList.length - 1].level.toFixed(1);
             }
         }
 
