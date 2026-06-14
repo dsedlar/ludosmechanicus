@@ -1894,6 +1894,126 @@
             }
         }
 
+        // ============ GOLF SIMULATOR CSV ============
+        // Header aliases → canonical field. Matching ignores case/spaces/punctuation,
+        // so it's easy to extend once the real simulator export format is known.
+        const GOLF_CSV_ALIASES = {
+            date:          ['date', 'day', 'playdate', 'sessiondate'],
+            score:         ['score', 'totalscore', 'strokes', 'gross'],
+            clubHeadSpeed: ['clubheadspeed', 'chs', 'clubspeed', 'swingspeed'],
+            ballSpeed:     ['ballspeed', 'bs'],
+            carryDistance: ['carrydistance', 'carry', 'carryyds', 'carryyards', 'carrydist'],
+            launchAngle:   ['launchangle', 'launch', 'la'],
+            spinRate:      ['spinrate', 'spin', 'backspin'],
+            smashFactor:   ['smashfactor', 'smash', 'sf']
+        };
+
+        function normalizeHeader(h) {
+            return String(h).toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+
+        // Split one CSV line, respecting double-quoted fields ("a,b" stays one cell)
+        function splitCsvLine(line) {
+            const out = [];
+            let cur = '', inQ = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (ch === '"') {
+                    if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+                    else inQ = !inQ;
+                } else if (ch === ',' && !inQ) {
+                    out.push(cur); cur = '';
+                } else {
+                    cur += ch;
+                }
+            }
+            out.push(cur);
+            return out.map(s => s.trim());
+        }
+
+        function downloadGolfTemplate() {
+            const headers = ['Date', 'Score', 'ClubHeadSpeed', 'BallSpeed', 'CarryDistance', 'LaunchAngle', 'SpinRate', 'SmashFactor'];
+            const example = ['2026-06-14', '78', '105', '152', '255', '14.5', '2600', '1.45'];
+            const csv = headers.join(',') + '\n' + example.join(',') + '\n';
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'golf_simulator_template.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        function importGolfCSV() {
+            const input = document.getElementById('golf-csv-input');
+            const file = input.files && input.files[0];
+            if (!file) {
+                showMessage('import-message', 'error', 'Choose a CSV file first.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                try {
+                    const text = e.target.result.replace(/\r\n?/g, '\n').trim();
+                    const lines = text.split('\n').filter(l => l.trim() !== '');
+                    if (lines.length < 2) {
+                        showMessage('import-message', 'error', 'That CSV has a header but no data rows.');
+                        return;
+                    }
+
+                    // Map each column index → canonical field name via the alias table
+                    const headerCells = splitCsvLine(lines[0]);
+                    const colField = headerCells.map(h => {
+                        const norm = normalizeHeader(h);
+                        for (const field in GOLF_CSV_ALIASES) {
+                            if (GOLF_CSV_ALIASES[field].includes(norm)) return field;
+                        }
+                        return null;
+                    });
+                    const recognized = colField.filter(Boolean);
+                    if (recognized.length === 0) {
+                        showMessage('import-message', 'error',
+                            'Couldn\'t recognize any columns. Headers in your file: ' + headerCells.join(', ') +
+                            '. Send me that list and I\'ll map your simulator\'s format.');
+                        return;
+                    }
+
+                    let imported = 0, skipped = 0;
+                    for (let i = 1; i < lines.length; i++) {
+                        const cells = splitCsvLine(lines[i]);
+                        const rec = { source: 'simulator', course: 'Simulator' };
+                        colField.forEach((field, idx) => {
+                            if (!field) return;
+                            const val = cells[idx];
+                            if (val === undefined || val === '') return;
+                            rec[field] = (field === 'date') ? val : (parseFloat(val) || 0);
+                        });
+                        if (!rec.date && !rec.score) { skipped++; continue; }   // unusable row
+                        if (rec.carryDistance && !rec.driveDist) rec.driveDist = rec.carryDistance; // show in table
+                        appData.golf.push(rec);
+                        imported++;
+                    }
+
+                    appData.golf.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    saveData(appData);
+                    renderAllGolfTable();
+                    updateStats();
+                    input.value = '';
+
+                    showMessage('import-message', 'success',
+                        `✓ Imported ${imported} round${imported === 1 ? '' : 's'}` +
+                        (skipped ? `, skipped ${skipped} empty row${skipped === 1 ? '' : 's'}` : '') +
+                        `. Recognized columns: ${recognized.join(', ')}.`);
+                } catch (err) {
+                    console.error('CSV import error:', err);
+                    showMessage('import-message', 'error', 'Could not parse that CSV: ' + err.message);
+                }
+            };
+            reader.onerror = () => showMessage('import-message', 'error', 'Failed to read the file.');
+            reader.readAsText(file);
+        }
+
         // ============ CORRELATIONS ============
         function calculateCorrelation(arr1, arr2) {
             if (arr1.length === 0 || arr2.length === 0 || arr1.length !== arr2.length) return null;
@@ -2408,8 +2528,10 @@
                 const drives = appData.golf.filter(g => g.driveDist > 0).map(g => g.driveDist);
                 if (drives.length > 0) {
                     const avgDrive = (drives.reduce((a, b) => a + b) / drives.length).toFixed(0);
-                    document.getElementById('avg-drive').textContent = avgDrive;
-                    document.getElementById('drive-trend').textContent = 'yd avg';
+                    const ad = document.getElementById('avg-drive');
+                    const dt = document.getElementById('drive-trend');
+                    if (ad) ad.textContent = avgDrive;       // these cards don't currently exist
+                    if (dt) dt.textContent = 'yd avg';       // guard so stats never crash
                 }
 
                 // Trend calculation
