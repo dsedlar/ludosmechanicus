@@ -573,6 +573,7 @@
             <button class="tab-btn" onclick="switchTab('cardio')">Cardio</button>
             <button class="tab-btn" onclick="switchTab('golf')">Golf</button>
             <button class="tab-btn" onclick="switchTab('oura')">Oura</button>
+            <button class="tab-btn" onclick="switchTab('prs')">PRs</button>
             <button class="tab-btn" onclick="switchTab('summary')">Weekly Summary</button>
         </div>
 
@@ -1119,6 +1120,29 @@
             </div>
         </div>
 
+        <!-- PERSONAL RECORDS -->
+        <div id="prs" class="tab-content">
+            <div class="section">
+                <div class="section-title">
+                    <div class="section-icon"><i class="ti ti-trophy"></i></div>
+                    Personal Records
+                </div>
+                <div class="info-box">Your all-time bests across every metric, with the date each was set.</div>
+                <div style="display:flex; gap:8px; margin-bottom:20px;">
+                    <button class="pr-subtab-btn active" onclick="switchPRSub('data', event)">Data</button>
+                    <button class="pr-subtab-btn" onclick="switchPRSub('strength', event)">Strength</button>
+                </div>
+                <div id="pr-data"></div>
+                <div id="pr-strength" style="display:none;"></div>
+            </div>
+            <style>
+                .pr-subtab-btn { padding:10px 22px; background:var(--bg-hover); border:1px solid var(--border); color:var(--text-secondary); border-radius:var(--radius); cursor:pointer; font-weight:600; font-size:14px; transition:all .2s; }
+                .pr-subtab-btn:hover { color:var(--text-primary); }
+                .pr-subtab-btn.active { background:var(--grad); color:#fff; border-color:transparent; }
+                .pr-cat-title { font-family:'Space Grotesk', sans-serif; font-weight:600; color:var(--text-primary); margin:4px 0 10px; font-size:15px; display:flex; align-items:center; gap:8px; }
+            </style>
+        </div>
+
         <!-- WEEKLY SUMMARY -->
         <div id="summary" class="tab-content">
             <div class="section">
@@ -1258,6 +1282,9 @@
                     renderCorrelations();
                     renderTrainingLog();
                 }
+                if (tabName === 'prs') {
+                    renderPRs();
+                }
             }, 100);
         }
 
@@ -1395,6 +1422,7 @@
 
                 appData.ouraApiData.sort((a, b) => new Date(b.date) - new Date(a.date));
                 appData.lastOuraSync = new Date().toISOString();
+                flagNewPRs();
                 saveData(appData);
 
                 renderOuraApiTable();
@@ -1444,6 +1472,7 @@
             }
 
             appData.ouraApiData.sort((a, b) => new Date(b.date) - new Date(a.date));
+            flagNewPRs();
             saveData(appData);
             updateStats();
             renderOuraApiTable();
@@ -1497,6 +1526,7 @@
             }
 
             appData.ouraApiData.sort((a, b) => new Date(b.date) - new Date(a.date));
+            flagNewPRs();
             saveData(appData);
             updateStats();
             renderOuraApiTable();
@@ -1727,6 +1757,7 @@
 
         function updateExerciseWeight(dayKey, exIdx, weight) {
             appData.currentWeek.days[dayKey].exercises[exIdx].weight = parseFloat(weight) || 0;
+            flagNewPRs();
             saveData(appData);
         }
 
@@ -1879,6 +1910,7 @@
             });
 
             appData.golf.sort((a, b) => new Date(b.date) - new Date(a.date));
+            flagNewPRs();
             saveData(appData);
 
             // Clear form
@@ -2028,6 +2060,7 @@
                     }
 
                     appData.golf.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    flagNewPRs();
                     saveData(appData);
                     renderAllGolfTable();
                     updateStats();
@@ -2337,6 +2370,7 @@
             });
 
             appData.cardio.sort((a, b) => new Date(b.date) - new Date(a.date));
+            flagNewPRs();
             saveData(appData);
             updateStats();
             renderCardioHistory();
@@ -2590,6 +2624,174 @@
             generateWeeklySummary();
         }
 
+        // ============ PERSONAL RECORDS ============
+        // Each metric: which array + field, direction (min/max = better), label, unit, optional formatter/validity
+        const PR_METRICS = [
+            // Golf
+            { cat: 'Golf', key: 'g_score',  label: 'Lowest score',       src: 'golf', field: 'score',         dir: 'min', unit: '' },
+            { cat: 'Golf', key: 'g_vspar',  label: 'Best vs par',        src: 'golf', field: 'vsPar',         dir: 'min', unit: '', valid: e => e.score > 0, fmt: v => (v > 0 ? '+' : '') + v },
+            { cat: 'Golf', key: 'g_hcp',    label: 'Lowest handicap',    src: 'golf', field: 'handicap',      dir: 'min', unit: '', fmt: v => v.toFixed(1) },
+            { cat: 'Golf', key: 'g_fw',     label: 'Most fairways',      src: 'golf', field: 'fairways',      dir: 'max', unit: '/ 14' },
+            { cat: 'Golf', key: 'g_gir',    label: 'Most greens in reg', src: 'golf', field: 'gir',           dir: 'max', unit: '/ 18' },
+            { cat: 'Golf', key: 'g_putts',  label: 'Fewest putts',       src: 'golf', field: 'putts',         dir: 'min', unit: '' },
+            { cat: 'Golf', key: 'g_drive',  label: 'Longest drive (avg)',src: 'golf', field: 'driveDist',     dir: 'max', unit: 'yd' },
+            { cat: 'Golf', key: 'g_scr',    label: 'Best scrambling',    src: 'golf', field: 'scrambling',    dir: 'max', unit: '%' },
+            { cat: 'Golf', key: 'g_chs',    label: 'Top club head speed',src: 'golf', field: 'clubHeadSpeed', dir: 'max', unit: 'mph' },
+            { cat: 'Golf', key: 'g_bs',     label: 'Top ball speed',     src: 'golf', field: 'ballSpeed',     dir: 'max', unit: 'mph' },
+            { cat: 'Golf', key: 'g_carry',  label: 'Longest carry',      src: 'golf', field: 'carryDistance', dir: 'max', unit: 'yd' },
+            { cat: 'Golf', key: 'g_smash',  label: 'Best smash factor',  src: 'golf', field: 'smashFactor',   dir: 'max', unit: '', fmt: v => v.toFixed(2) },
+            // Cardio
+            { cat: 'Cardio', key: 'c_dur',  label: 'Longest session',    src: 'cardio', field: 'duration',    dir: 'max', unit: 'min' },
+            { cat: 'Cardio', key: 'c_dist', label: 'Longest distance',   src: 'cardio', field: 'distance',    dir: 'max', unit: 'mi' },
+            { cat: 'Cardio', key: 'c_int',  label: 'Highest intensity',  src: 'cardio', field: 'intensity',   dir: 'max', unit: '/ 10' },
+            { cat: 'Cardio', key: 'c_cal',  label: 'Most calories',      src: 'cardio', field: 'calories',    dir: 'max', unit: 'kcal' },
+            { cat: 'Cardio', key: 'c_out',  label: 'Top Peloton output', src: 'cardio', field: 'output',      dir: 'max', unit: '' },
+            // Recovery (Oura)
+            { cat: 'Recovery', key: 'r_sleep', label: 'Highest sleep score', src: 'ouraApiData', field: 'sleepScore',    dir: 'max', unit: '' },
+            { cat: 'Recovery', key: 'r_dur',   label: 'Longest sleep',       src: 'ouraApiData', field: 'sleepDuration', dir: 'max', unit: 'h' },
+            { cat: 'Recovery', key: 'r_hrv',   label: 'Highest HRV',         src: 'ouraApiData', field: 'hrv',           dir: 'max', unit: '' },
+            { cat: 'Recovery', key: 'r_ready', label: 'Highest readiness',   src: 'ouraApiData', field: 'readiness',     dir: 'max', unit: '' },
+            { cat: 'Recovery', key: 'r_act',   label: 'Highest activity',    src: 'ouraApiData', field: 'activity',      dir: 'max', unit: '' },
+            // Body (lowest = best)
+            { cat: 'Body', key: 'b_wt',  label: 'Lowest weight',       src: 'ouraApiData', field: 'weight',   dir: 'min', unit: 'lb', fmt: v => v.toFixed(1) },
+            { cat: 'Body', key: 'b_bf',  label: 'Lowest body fat',     src: 'ouraApiData', field: 'bodyFat',  dir: 'min', unit: '%', fmt: v => v.toFixed(1) },
+            { cat: 'Body', key: 'b_vis', label: 'Lowest visceral fat', src: 'ouraApiData', field: 'visceral', dir: 'min', unit: '', fmt: v => v.toFixed(1) }
+        ];
+
+        // Find the record entry for one metric → { value, date } or null
+        function recordFor(spec) {
+            const arr = appData[spec.src] || [];
+            const valid = spec.valid || (e => { const v = e[spec.field]; return v !== undefined && v !== null && !isNaN(v) && v > 0; });
+            let best = null, date = null;
+            arr.forEach(e => {
+                const v = e[spec.field];
+                if (v === undefined || v === null || isNaN(v)) return;
+                if (!valid(e)) return;
+                if (best === null || (spec.dir === 'min' ? v < best : v > best)) { best = v; date = e.date; }
+            });
+            return best === null ? null : { value: best, date: date };
+        }
+
+        // First integer in a reps string ("8-10 ea" → 8) for 1RM math
+        function parseRepsNumber(reps) {
+            const m = String(reps).match(/\d+/);
+            return m ? parseInt(m[0], 10) : null;
+        }
+
+        // Heaviest weight per exercise across all weeks (+ reps, est. 1RM, date)
+        function computeStrengthPRs() {
+            const weeks = [];
+            if (appData.currentWeek) weeks.push(appData.currentWeek);
+            (appData.weekHistory || []).forEach(w => weeks.push(w));
+
+            const best = {};
+            weeks.forEach(w => {
+                ['day1', 'day2', 'day3', 'day4'].forEach(dk => {
+                    const day = w.days && w.days[dk];
+                    if (!day || !day.exercises) return;
+                    day.exercises.forEach(ex => {
+                        const wt = parseFloat(ex.weight) || 0;
+                        if (wt <= 0) return;
+                        const repsNum = parseRepsNumber(ex.reps);
+                        const oneRM = repsNum ? Math.round(wt * (1 + repsNum / 30)) : wt;
+                        if (!best[ex.name] || wt > best[ex.name].weight) {
+                            best[ex.name] = { name: ex.name, weight: wt, reps: ex.reps, oneRM: oneRM, date: day.completedDate || null, weekNum: w.weekNum };
+                        }
+                    });
+                });
+            });
+            return Object.values(best).sort((a, b) => b.oneRM - a.oneRM);
+        }
+
+        function formatVal(v, unit, fmt) {
+            let s = fmt ? fmt(v) : (Number.isInteger(v) ? v : v.toFixed(1));
+            return unit ? `${s} ${unit}` : `${s}`;
+        }
+
+        // Flat snapshot of current bests for new-PR detection
+        function snapshotPRs() {
+            const snap = { data: {}, strength: {} };
+            PR_METRICS.forEach(s => { const r = recordFor(s); if (r) snap.data[s.key] = r.value; });
+            computeStrengthPRs().forEach(p => { snap.strength[p.name] = p.weight; });
+            return snap;
+        }
+
+        function showPRToast(items) {
+            const old = document.getElementById('pr-toast');
+            if (old) old.remove();
+            const div = document.createElement('div');
+            div.id = 'pr-toast';
+            div.style.cssText = 'position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--grad); color:#fff; padding:14px 22px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.45); z-index:2000; font-weight:600; max-width:92%; text-align:center;';
+            const shown = items.slice(0, 3).join(', ') + (items.length > 3 ? ` +${items.length - 3} more` : '');
+            div.innerHTML = `<i class="ti ti-trophy" style="margin-right:8px;"></i>New PR! ${shown}`;
+            document.body.appendChild(div);
+            setTimeout(() => { if (div.parentNode) div.remove(); }, 5000);
+        }
+
+        // Compare current bests to the stored snapshot; toast anything beaten
+        function flagNewPRs() {
+            const prev = appData.prBests;
+            const cur = snapshotPRs();
+            if (!prev) { appData.prBests = cur; return; }  // no baseline yet → just set it
+            const beaten = [];
+            PR_METRICS.forEach(s => {
+                const c = cur.data[s.key];
+                if (c === undefined) return;
+                const p = prev.data ? prev.data[s.key] : undefined;
+                if (p === undefined || (s.dir === 'min' ? c < p : c > p)) beaten.push(s.label);
+            });
+            Object.keys(cur.strength).forEach(name => {
+                const p = prev.strength ? prev.strength[name] : undefined;
+                if (p === undefined || cur.strength[name] > p) beaten.push(name);
+            });
+            appData.prBests = cur;
+            if (beaten.length) showPRToast(beaten);
+        }
+
+        function switchPRSub(which, ev) {
+            document.querySelectorAll('.pr-subtab-btn').forEach(b => b.classList.remove('active'));
+            if (ev && ev.target) ev.target.classList.add('active');
+            document.getElementById('pr-data').style.display = which === 'data' ? 'block' : 'none';
+            document.getElementById('pr-strength').style.display = which === 'strength' ? 'block' : 'none';
+        }
+
+        const PR_CAT_ICON = { Golf: 'ti-golf', Cardio: 'ti-run', Recovery: 'ti-moon', Body: 'ti-scale' };
+
+        function renderPRs() {
+            // Data sub-tab, grouped by category
+            const cats = { Golf: [], Cardio: [], Recovery: [], Body: [] };
+            PR_METRICS.forEach(s => cats[s.cat].push({ spec: s, rec: recordFor(s) }));
+
+            let html = '';
+            Object.keys(cats).forEach(cat => {
+                html += `<div style="margin-bottom:24px;">
+                    <div class="pr-cat-title"><i class="ti ${PR_CAT_ICON[cat]}" style="color:var(--accent);"></i>${cat}</div>
+                    <table class="data-table"><thead><tr><th>Stat</th><th>Record</th><th>Date</th></tr></thead><tbody>`;
+                cats[cat].forEach(({ spec, rec }) => {
+                    const val = rec ? formatVal(rec.value, spec.unit, spec.fmt) : '—';
+                    const date = rec ? rec.date : '—';
+                    html += `<tr><td>${spec.label}</td><td class="data-value">${val}</td><td>${date}</td></tr>`;
+                });
+                html += `</tbody></table></div>`;
+            });
+            document.getElementById('pr-data').innerHTML = html;
+
+            // Strength sub-tab
+            const sp = computeStrengthPRs();
+            let shtml;
+            if (sp.length === 0) {
+                shtml = `<div class="info-box">No strength weights logged yet. Enter weights on the Strength tab and each exercise's PR will show up here.</div>`;
+            } else {
+                shtml = `<table class="data-table"><thead><tr><th>Exercise</th><th>Best Weight</th><th>Reps</th><th>Est. 1RM</th><th>Date</th></tr></thead><tbody>`;
+                sp.forEach(p => {
+                    const date = p.date || ('Week ' + p.weekNum);
+                    shtml += `<tr><td>${p.name}</td><td class="data-value">${p.weight} lb</td><td>${p.reps}</td><td class="data-value">${p.oneRM} lb</td><td>${date}</td></tr>`;
+                });
+                shtml += `</tbody></table>`;
+            }
+            document.getElementById('pr-strength').innerHTML = shtml;
+        }
+
         // ============ INITIALIZATION ============
         function init() {
             // Initialize current week if needed
@@ -2613,6 +2815,7 @@
             renderCardioHistory();
             renderTrainingLog();
             updateStats();
+            if (!appData.prBests) appData.prBests = snapshotPRs();  // baseline; no toast on first load
             selectDay(1);
         }
 
