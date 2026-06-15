@@ -1070,39 +1070,16 @@
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Fairways Hit / 14</label>
-                            <input type="number" id="grint-fairways" min="0" max="14" placeholder="10">
-                        </div>
-                        <div class="form-group">
-                            <label>GIR (Greens in Regulation)</label>
-                            <input type="number" id="grint-gir" min="0" max="18" placeholder="12">
-                        </div>
-                        <div class="form-group">
                             <label>Putts</label>
                             <input type="number" id="grint-putts" placeholder="32">
                         </div>
                         <div class="form-group">
-                            <label>Putts per GIR</label>
-                            <input type="number" id="grint-putter-efficiency" step="0.1" placeholder="1.92">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Driving Distance (avg yd)</label>
-                            <input type="number" id="grint-drive-dist" placeholder="265">
+                            <label>GIR % (Greens in Reg.)</label>
+                            <input type="number" id="grint-gir-pct" min="0" max="100" placeholder="56">
                         </div>
                         <div class="form-group">
-                            <label>Accuracy (% fairways)</label>
-                            <input type="number" id="grint-accuracy" min="0" max="100" placeholder="71">
-                        </div>
-                        <div class="form-group">
-                            <label>Scrambling % (recovery)</label>
-                            <input type="number" id="grint-scrambling" min="0" max="100" placeholder="45">
-                        </div>
-                        <div class="form-group">
-                            <label>Greens Hit in Reg. %</label>
-                            <input type="number" id="grint-gir-pct" min="0" max="100" placeholder="67">
+                            <label>FIR % (Fairways in Reg.)</label>
+                            <input type="number" id="grint-accuracy" min="0" max="100" placeholder="64">
                         </div>
                     </div>
 
@@ -1232,10 +1209,9 @@
                             <th>Score</th>
                             <th>vs Par</th>
                             <th>HCP</th>
-                            <th>GIR</th>
+                            <th>GIR %</th>
+                            <th>FIR %</th>
                             <th>Putts</th>
-                            <th>Fairways</th>
-                            <th>Drive (yd)</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -1985,14 +1961,9 @@
             const score = parseFloat(document.getElementById('grint-score').value);
             const par = parseFloat(document.getElementById('grint-par').value) || 72;
             const slope = parseFloat(document.getElementById('grint-slope').value) || 0;
-            const fairways = parseFloat(document.getElementById('grint-fairways').value) || 0;
-            const gir = parseFloat(document.getElementById('grint-gir').value) || 0;
             const putts = parseFloat(document.getElementById('grint-putts').value) || 0;
-            const putter = parseFloat(document.getElementById('grint-putter-efficiency').value) || 0;
-            const driveDist = parseFloat(document.getElementById('grint-drive-dist').value) || 0;
-            const accuracy = parseFloat(document.getElementById('grint-accuracy').value) || 0;
-            const scrambling = parseFloat(document.getElementById('grint-scrambling').value) || 0;
             const girPct = parseFloat(document.getElementById('grint-gir-pct').value) || 0;
+            const accuracy = parseFloat(document.getElementById('grint-accuracy').value) || 0;
             const weather = document.getElementById('grint-weather').value;
             const condition = document.getElementById('grint-condition').value;
             const energy = parseFloat(document.getElementById('grint-energy').value) || 0;
@@ -2019,14 +1990,9 @@
                 score,
                 par,
                 vsPar,
-                fairways,
-                gir,
                 putts,
-                putterEfficiency: putter,
-                driveDist,
-                accuracy,
-                scrambling,
                 girPct,
+                accuracy,
                 weather,
                 condition,
                 energy,
@@ -2057,6 +2023,9 @@
             document.getElementById('grint-rating').value = '';
             document.getElementById('grint-slope').value = '';
             document.getElementById('grint-par').value = '';
+            document.getElementById('grint-putts').value = '';
+            document.getElementById('grint-gir-pct').value = '';
+            document.getElementById('grint-accuracy').value = '';
             document.getElementById('grint-notes').value = '';
             document.getElementById('grint-play').value = '';
             document.getElementById('grint-temp').value = '';
@@ -2398,10 +2367,9 @@
                     <td class="data-value">${g.score || '—'}</td>
                     <td>${g.vsPar ? (g.vsPar > 0 ? '+' : '') + g.vsPar : '—'}</td>
                     <td>${g.handicap > 0 ? g.handicap.toFixed(1) : '—'}</td>
-                    <td>${g.gir > 0 ? g.gir : '—'}</td>
+                    <td>${g.girPct > 0 ? g.girPct + '%' : '—'}</td>
+                    <td>${g.accuracy > 0 ? g.accuracy + '%' : '—'}</td>
                     <td>${g.putts > 0 ? g.putts : '—'}</td>
-                    <td>${g.fairways > 0 ? g.fairways : '—'}</td>
-                    <td>${g.driveDist > 0 ? g.driveDist + ' yd' : '—'}</td>
                     <td><button class="delete-btn" onclick="deleteGolf(${idx})">Delete</button></td>
                 `;
                 tbody.appendChild(row);
@@ -3095,11 +3063,10 @@
             { cat: 'Golf', key: 'g_score',  label: 'Lowest score',       src: 'golf', field: 'score',         dir: 'min', unit: '' },
             { cat: 'Golf', key: 'g_vspar',  label: 'Best vs par',        src: 'golf', field: 'vsPar',         dir: 'min', unit: '', valid: e => e.score > 0, fmt: v => (v > 0 ? '+' : '') + v },
             { cat: 'Golf', key: 'g_hcp',    label: 'Lowest handicap',    src: 'golf', field: 'handicap',      dir: 'min', unit: '', fmt: v => v.toFixed(1) },
-            { cat: 'Golf', key: 'g_fw',     label: 'Most fairways',      src: 'golf', field: 'fairways',      dir: 'max', unit: '/ 14' },
-            { cat: 'Golf', key: 'g_gir',    label: 'Most greens in reg', src: 'golf', field: 'gir',           dir: 'max', unit: '/ 18' },
-            { cat: 'Golf', key: 'g_putts',  label: 'Fewest putts',       src: 'golf', field: 'putts',         dir: 'min', unit: '' },
-            { cat: 'Golf', key: 'g_drive',  label: 'Longest drive (avg)',src: 'golf', field: 'driveDist',     dir: 'max', unit: 'yd' },
-            { cat: 'Golf', key: 'g_scr',    label: 'Best scrambling',    src: 'golf', field: 'scrambling',    dir: 'max', unit: '%' },
+            { cat: 'Golf', key: 'g_fir',    label: 'Best fairways (FIR %)', src: 'golf', field: 'accuracy',    dir: 'max', unit: '%' },
+            { cat: 'Golf', key: 'g_gir',    label: 'Best greens (GIR %)',  src: 'golf', field: 'girPct',      dir: 'max', unit: '%' },
+            { cat: 'Golf', key: 'g_putts',  label: 'Fewest putts',         src: 'golf', field: 'putts',       dir: 'min', unit: '' },
+            { cat: 'Golf', key: 'g_drive',  label: 'Longest drive (avg)',  src: 'golf', field: 'driveDist',   dir: 'max', unit: 'yd' },
             { cat: 'Golf', key: 'g_chs',    label: 'Top club head speed',src: 'golf', field: 'clubHeadSpeed', dir: 'max', unit: 'mph' },
             { cat: 'Golf', key: 'g_bs',     label: 'Top ball speed',     src: 'golf', field: 'ballSpeed',     dir: 'max', unit: 'mph' },
             { cat: 'Golf', key: 'g_carry',  label: 'Longest carry',      src: 'golf', field: 'carryDistance', dir: 'max', unit: 'yd' },
