@@ -932,7 +932,7 @@
                         </div>
                         <div class="form-group">
                             <label>Cardio Type</label>
-                            <select id="cardio-type">
+                            <select id="cardio-type" onchange="onCardioTypeChange()">
                                 <option value="peloton">Peloton</option>
                                 <option value="indoor-soccer">Indoor Soccer</option>
                                 <option value="basketball-coaching">Basketball (Coaching)</option>
@@ -966,15 +966,39 @@
                             <label>Calories Burned (opt.)</label>
                             <input type="number" id="cardio-calories" placeholder="400">
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" id="peloton-output-group">
                             <label>Peloton Output (opt.)</label>
                             <input type="number" id="cardio-output" placeholder="200">
                         </div>
                     </div>
                     <div class="form-row">
+                        <div class="form-group">
+                            <label>How did you feel?</label>
+                            <select id="cardio-feel">
+                                <option value="">Select…</option>
+                                <option>Great</option>
+                                <option>Good</option>
+                                <option>Average</option>
+                                <option>Tired</option>
+                                <option>Drained</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Energy Level</label>
+                            <select id="cardio-energy">
+                                <option value="">Select…</option>
+                                <option>Very high</option>
+                                <option>High</option>
+                                <option>Moderate</option>
+                                <option>Low</option>
+                                <option>Very low</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
                         <div style="grid-column: 1 / -1;">
                             <label>Notes</label>
-                            <textarea id="cardio-notes" placeholder="How did you feel? Energy level? Soreness?"></textarea>
+                            <textarea id="cardio-notes" placeholder="Soreness? Anything else to note?"></textarea>
                         </div>
                     </div>
                     <button class="btn-primary" onclick="addCardio()" style="margin-top: 12px;">Log Cardio</button>
@@ -2874,6 +2898,12 @@
             }
         }
 
+        // Peloton Output only applies to Peloton rides
+        function onCardioTypeChange() {
+            const g = document.getElementById('peloton-output-group');
+            if (g) g.style.display = (document.getElementById('cardio-type').value === 'peloton') ? '' : 'none';
+        }
+
         function addCardio() {
             const date = document.getElementById('cardio-date').value;
             const type = document.getElementById('cardio-type').value;
@@ -2882,7 +2912,9 @@
             const distance = parseFloat(document.getElementById('cardio-distance').value) || 0;
             const hr = parseFloat(document.getElementById('cardio-hr').value) || 0;
             const calories = parseFloat(document.getElementById('cardio-calories').value) || 0;
-            const output = parseFloat(document.getElementById('cardio-output').value) || 0;
+            const output = type === 'peloton' ? (parseFloat(document.getElementById('cardio-output').value) || 0) : 0;
+            const feel = document.getElementById('cardio-feel').value;
+            const energy = document.getElementById('cardio-energy').value;
             const notes = document.getElementById('cardio-notes').value;
 
             if (!date || !type || !duration) {
@@ -2899,6 +2931,8 @@
                 hr,
                 calories,
                 output,
+                feel,
+                energyLevel: energy,
                 notes
             });
 
@@ -2916,6 +2950,8 @@
             document.getElementById('cardio-hr').value = '';
             document.getElementById('cardio-calories').value = '';
             document.getElementById('cardio-output').value = '';
+            document.getElementById('cardio-feel').value = '';
+            document.getElementById('cardio-energy').value = '';
             document.getElementById('cardio-notes').value = '';
 
             showMessage('cardio-message', 'success', `✓ Cardio logged: ${duration} min ${type}`);
@@ -4002,6 +4038,7 @@
             // Set today's date
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('cardio-date').value = today;
+            onCardioTypeChange();
             document.getElementById('grint-date').value = today;
             document.getElementById('oura-date').value = today;
             document.getElementById('weight-date').value = today;
