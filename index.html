@@ -621,7 +621,7 @@
                 <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
                     <button class="btn-primary" onclick="saveOuraToken()">Save</button>
                     <button class="btn-secondary" onclick="testOuraConnection()">Test Connection</button>
-                    <button class="btn-secondary" onclick="syncOuraDataFromAPI()">Sync Last 30 Days</button>
+                    <button class="btn-secondary" onclick="syncOuraDataFromAPI()">Sync</button>
                     <a href="https://cloud.ouraring.com/personal-access-tokens" target="_blank" style="color:var(--primary); text-decoration:none; font-size:12px;">Get Token</a>
                 </div>
                 <div id="oura-message" style="margin-top:12px;"></div>
@@ -1514,7 +1514,13 @@
 
             try {
                 const end = new Date().toISOString().slice(0, 10);
-                const startD = new Date(); startD.setDate(startD.getDate() - 30);
+                const startD = new Date();
+                if (appData.lastOuraSync) {
+                    startD.setTime(new Date(appData.lastOuraSync).getTime());
+                    startD.setDate(startD.getDate() - 1);   // from last sync, minus a day so the latest day finalizes
+                } else {
+                    startD.setDate(startD.getDate() - 30);   // first sync pulls 30 days of history
+                }
                 const q = `?start_date=${startD.toISOString().slice(0, 10)}&end_date=${end}`;
 
                 const [sleepData, sleepDetail, readinessData, activityData] = await Promise.all([
