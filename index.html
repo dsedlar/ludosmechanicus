@@ -684,20 +684,24 @@
 
         <!-- DASHBOARD -->
         <div id="dashboard" class="tab-content active">
-            <div class="section">
-                <div class="section-title"><div class="section-icon"><i class="ti ti-target"></i></div>Perfect Week</div>
-                <div id="perfect-week"></div>
-            </div>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:var(--gap);">
+            <style>
+                .dash-row { display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); gap:var(--gap); }
+                @media (max-width:820px) { .dash-row { grid-template-columns:1fr; } }
+            </style>
+            <div class="dash-row">
                 <div class="section" style="margin:0;">
-                    <div class="section-title"><div class="section-icon"><i class="ti ti-bolt"></i></div>Quick Actions</div>
-                    <div id="quick-actions" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+                    <div class="section-title"><div class="section-icon"><i class="ti ti-target"></i></div>Perfect Week</div>
+                    <div id="perfect-week"></div>
                 </div>
                 <div class="section" style="margin:0;">
                     <div class="section-title"><div class="section-icon"><i class="ti ti-notebook"></i></div>Journaling</div>
                     <div id="journal-summary"></div>
                     <div id="journal-heatmap" style="margin-top:14px;"></div>
                 </div>
+            </div>
+            <div class="section">
+                <div class="section-title"><div class="section-icon"><i class="ti ti-bolt"></i></div>Quick Actions</div>
+                <div id="quick-actions" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
             </div>
         </div>
 
