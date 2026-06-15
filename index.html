@@ -1263,6 +1263,22 @@
                 </div>
             </div>
             <div class="section">
+                <div class="section-title"><div class="section-icon"><i class="ti ti-calendar-plus"></i></div>Log a Past Fast</div>
+                <div class="info-box">Forgot the timer? Add a fast by picking when it started and ended.</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Start (date &amp; time)</label>
+                        <input type="datetime-local" id="fast-start">
+                    </div>
+                    <div class="form-group">
+                        <label>End (date &amp; time)</label>
+                        <input type="datetime-local" id="fast-end">
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="addManualFast()" style="margin-top:12px;">Add fast</button>
+                <div id="fast-manual-message" style="margin-top:10px;"></div>
+            </div>
+            <div class="section">
                 <div class="section-title"><div class="section-icon"><i class="ti ti-history"></i></div>Fasting History</div>
                 <table class="data-table"><thead><tr><th>Date</th><th>Length</th><th>Type</th><th>Goal</th><th>Action</th></tr></thead><tbody id="fasting-history"></tbody></table>
             </div>
@@ -3750,6 +3766,23 @@
             saveData(appData); renderFasting(); renderDashboard();
         }
         function cancelFast() { const f = ensureFasting(); f.activeStart = null; saveData(appData); renderFasting(); renderDashboard(); }
+        function addManualFast() {
+            const sv = document.getElementById('fast-start').value;
+            const ev = document.getElementById('fast-end').value;
+            if (!sv || !ev) { showMessage('fast-manual-message', 'error', 'Pick a start and end date/time.'); return; }
+            const start = new Date(sv), end = new Date(ev);
+            if (end <= start) { showMessage('fast-manual-message', 'error', 'End must be after start.'); return; }
+            const hours = Math.round((end - start) / 3600000 * 10) / 10;
+            const f = ensureFasting();
+            f.log.push({ date: start.toISOString().slice(0, 10), start: start.toISOString(), end: end.toISOString(), hours, type: hours >= 24 ? 'Prolonged' : 'Intermittent', goal: f.goalHours });
+            f.log.sort((a, b) => new Date(b.start || b.date) - new Date(a.start || a.date));   // newest first
+            saveData(appData);
+            renderFasting();
+            renderDashboard();
+            document.getElementById('fast-start').value = '';
+            document.getElementById('fast-end').value = '';
+            showMessage('fast-manual-message', 'success', `✓ Logged a ${hours}h fast (${hours >= 24 ? 'Prolonged' : 'Intermittent'}).`);
+        }
         function setFastGoal(v) { const f = ensureFasting(); f.goalHours = parseFloat(v) || 16; saveData(appData); renderFasting(); }
         function deleteFast(i) { const f = ensureFasting(); f.log.splice(i, 1); saveData(appData); renderFasting(); }
         function fastingStreak() { return dayStreak((ensureFasting().log || []).map(l => l.date)); }
