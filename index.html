@@ -594,7 +594,17 @@
             <div class="seg-modal-card">
                 <div class="seg-modal-head">
                     <div class="seg-title"><span class="section-icon"><i id="seg-icon" class="ti"></i></span><span id="seg-name"></span></div>
-                    <button class="seg-close" onclick="closeSegment()" aria-label="Close"><i class="ti ti-x"></i></button>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <button class="seg-nav" onclick="navSegment(-1)" aria-label="Previous metric"><i class="ti ti-chevron-left"></i></button>
+                        <button class="seg-nav" onclick="navSegment(1)" aria-label="Next metric"><i class="ti ti-chevron-right"></i></button>
+                        <button class="seg-close" onclick="closeSegment()" aria-label="Close"><i class="ti ti-x"></i></button>
+                    </div>
+                </div>
+                <div id="seg-range" class="seg-range">
+                    <button class="seg-range-btn" data-r="30" onclick="setSegRange('30')">30D</button>
+                    <button class="seg-range-btn" data-r="90" onclick="setSegRange('90')">90D</button>
+                    <button class="seg-range-btn" data-r="365" onclick="setSegRange('365')">1Y</button>
+                    <button class="seg-range-btn active" data-r="all" onclick="setSegRange('all')">All</button>
                 </div>
                 <div id="seg-kpis" class="seg-kpis"></div>
                 <div id="seg-chart-wrap" class="seg-chart-wrap"><canvas id="seg-chart"></canvas></div>
@@ -613,6 +623,11 @@
             .seg-kpi-lbl { font-size:10px; color:var(--text-secondary); margin-top:4px; text-transform:uppercase; letter-spacing:.04em; }
             .seg-chart-wrap { height:280px; margin-bottom:18px; }
             .seg-story { background:var(--bg-hover); border-left:3px solid var(--accent); border-radius:0 10px 10px 0; padding:14px 16px; color:var(--text-primary); line-height:1.6; font-size:14px; }
+            .seg-nav { background:var(--bg-hover); border:1px solid var(--border); color:var(--text-secondary); width:34px; height:34px; border-radius:9px; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; }
+            .seg-nav:hover, .seg-close:hover { color:var(--text-primary); border-color:var(--accent); }
+            .seg-range { display:flex; gap:6px; margin-bottom:16px; }
+            .seg-range-btn { flex:1; padding:8px; background:var(--bg-hover); border:1px solid var(--border); color:var(--text-secondary); border-radius:8px; cursor:pointer; font-weight:600; font-size:13px; }
+            .seg-range-btn.active { background:var(--grad); color:#fff; border-color:transparent; }
             @media (max-width:600px) { .seg-kpis { grid-template-columns:repeat(2,1fr); } }
         </style>
 
@@ -2848,26 +2863,46 @@
         const avgOf = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
         function hexA(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; }
 
-        // chronological [{date,value}] for a numeric field
+        let segRange = 'all';     // '30' | '90' | '365' | 'all'
+        let segCurrentKey = null;
+        const SEGMENT_ORDER = ['strength', 'cardio', 'golfRounds', 'handicap', 'avgScore', 'weight', 'sleep', 'visceral'];
+
+        function rangeCutoff() {
+            if (segRange === 'all') return null;
+            const d = new Date(); d.setDate(d.getDate() - parseInt(segRange, 10)); return d;
+        }
+        function inRange(dateStr) {
+            const c = rangeCutoff();
+            if (!c) return true;
+            return dateStr && new Date(dateStr) >= c;
+        }
+
+        // chronological [{date,value}] for a numeric field, within the active range
         function dateSeries(src, field) {
-            return (appData[src] || []).filter(e => e[field] > 0)
+            return (appData[src] || []).filter(e => e[field] > 0 && inRange(e.date))
                 .map(e => ({ date: e.date, value: e[field] }))
                 .sort((a, b) => new Date(a.date) - new Date(b.date));
         }
-        // count of items per YYYY-MM bucket
+        // count of items per YYYY-MM bucket, within the active range
         function bucketByMonth(items, getDate) {
             const map = {};
-            items.forEach(it => { const d = getDate(it); if (!d) return; const k = d.slice(0, 7); map[k] = (map[k] || 0) + 1; });
+            items.forEach(it => { const d = getDate(it); if (!d || !inRange(d)) return; const k = d.slice(0, 7); map[k] = (map[k] || 0) + 1; });
             const keys = Object.keys(map).sort();
             return { labels: keys, values: keys.map(k => map[k]) };
         }
-        // strength days completed per week (chronological)
+        // strength days completed per week (chronological), within the active range
         function strengthWeekly() {
             const weeks = [];
             if (appData.currentWeek) weeks.push(appData.currentWeek);
             (appData.weekHistory || []).forEach(w => weeks.push(w));
             weeks.sort((a, b) => a.weekNum - b.weekNum);
-            return { labels: weeks.map(w => 'W' + w.weekNum), values: weeks.map(w => Object.values(w.days || {}).filter(d => d && d.completed).length) };
+            const keep = weeks.filter(w => {
+                if (w === appData.currentWeek) return true;   // always show the live week
+                const dates = Object.values(w.days || {}).map(d => d && d.completedDate).filter(Boolean).sort();
+                if (!dates.length) return segRange === 'all';
+                return inRange(dates[dates.length - 1]);
+            });
+            return { labels: keep.map(w => 'W' + w.weekNum), values: keep.map(w => Object.values(w.days || {}).filter(d => d && d.completed).length) };
         }
 
         const SEGMENTS = {
@@ -2880,14 +2915,14 @@
             cardio: {
                 title: 'Cardio Sessions', icon: 'ti-run', type: 'bar', color: '#06b6d4', yMin: 0,
                 data: () => bucketByMonth(appData.cardio, c => c.date),
-                kpis: () => { const c = appData.cardio; const min = c.reduce((s, x) => s + (x.duration || 0), 0); const longest = c.length ? Math.max(...c.map(x => x.duration || 0)) : 0; const types = {}; c.forEach(x => { if (x.type) types[x.type] = (types[x.type] || 0) + 1; }); const top = Object.keys(types).sort((a, b) => types[b] - types[a])[0] || '—'; return [{ label: 'Sessions', value: c.length }, { label: 'Total min', value: min }, { label: 'Longest', value: longest + 'm' }, { label: 'Top type', value: top }]; },
-                story: () => { const c = appData.cardio; if (!c.length) return 'No cardio logged yet — log a session to start the story.'; const min = c.reduce((s, x) => s + (x.duration || 0), 0); return `<strong>${c.length}</strong> sessions and <strong>${min}</strong> total minutes (avg <strong>${(min / c.length).toFixed(0)}</strong> min). Steady cardio is your biggest lever on visceral fat and recovery.`; }
+                kpis: () => { const c = appData.cardio.filter(x => inRange(x.date)); const min = c.reduce((s, x) => s + (x.duration || 0), 0); const longest = c.length ? Math.max(...c.map(x => x.duration || 0)) : 0; const types = {}; c.forEach(x => { if (x.type) types[x.type] = (types[x.type] || 0) + 1; }); const top = Object.keys(types).sort((a, b) => types[b] - types[a])[0] || '—'; return [{ label: 'Sessions', value: c.length }, { label: 'Total min', value: min }, { label: 'Longest', value: longest + 'm' }, { label: 'Top type', value: top }]; },
+                story: () => { const c = appData.cardio.filter(x => inRange(x.date)); if (!c.length) return 'No cardio in this range — log a session or widen the window.'; const min = c.reduce((s, x) => s + (x.duration || 0), 0); return `<strong>${c.length}</strong> sessions and <strong>${min}</strong> total minutes (avg <strong>${(min / c.length).toFixed(0)}</strong> min). Steady cardio is your biggest lever on visceral fat and recovery.`; }
             },
             golfRounds: {
                 title: 'Golf Rounds', icon: 'ti-golf', type: 'bar', color: '#14b8a6', yMin: 0,
                 data: () => bucketByMonth(appData.golf.filter(g => g.score > 0), g => g.date),
-                kpis: () => { const g = appData.golf.filter(x => x.score > 0); const s = g.map(x => x.score); return [{ label: 'Rounds', value: g.length }, { label: 'Avg score', value: s.length ? avgOf(s).toFixed(1) : '—' }, { label: 'Best', value: s.length ? Math.min(...s) : '—' }, { label: 'This yr', value: g.filter(x => x.date >= (new Date().getFullYear() + '-01-01')).length }]; },
-                story: () => { const g = appData.golf.filter(x => x.score > 0); if (!g.length) return 'No rounds logged yet.'; return `<strong>${g.length}</strong> rounds in the books, best score <strong>${Math.min(...g.map(x => x.score))}</strong>. The bars show your monthly play volume — frequency builds feel.`; }
+                kpis: () => { const g = appData.golf.filter(x => x.score > 0 && inRange(x.date)); const s = g.map(x => x.score); return [{ label: 'Rounds', value: g.length }, { label: 'Avg score', value: s.length ? avgOf(s).toFixed(1) : '—' }, { label: 'Best', value: s.length ? Math.min(...s) : '—' }, { label: 'This yr', value: g.filter(x => x.date >= (new Date().getFullYear() + '-01-01')).length }]; },
+                story: () => { const g = appData.golf.filter(x => x.score > 0 && inRange(x.date)); if (!g.length) return 'No rounds in this range — widen the window to see more.'; return `<strong>${g.length}</strong> rounds in this window, best score <strong>${Math.min(...g.map(x => x.score))}</strong>. The bars show your monthly play volume — frequency builds feel.`; }
             },
             handicap: {
                 title: 'Current Handicap', icon: 'ti-flag', type: 'line', color: '#2563eb',
@@ -2926,11 +2961,13 @@
             if (window.segChartInstance) { window.segChartInstance.destroy(); window.segChartInstance = null; }
         }
 
-        function openSegment(key) {
-            const seg = SEGMENTS[key];
+        // Render the currently-selected segment at the current range (re-runnable)
+        function renderSegment() {
+            const seg = SEGMENTS[segCurrentKey];
             if (!seg) return;
             document.getElementById('seg-name').textContent = seg.title;
             document.getElementById('seg-icon').className = 'ti ' + seg.icon;
+            document.querySelectorAll('.seg-range-btn').forEach(b => b.classList.toggle('active', b.dataset.r === segRange));
             document.getElementById('seg-kpis').innerHTML = seg.kpis().map(k => `<div class="seg-kpi"><div class="seg-kpi-val">${k.value}</div><div class="seg-kpi-lbl">${k.label}</div></div>`).join('');
             document.getElementById('seg-story').innerHTML = seg.story();
 
@@ -2960,8 +2997,44 @@
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#cbd5e1' } } }, scales: { x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }, y: yScale } }
                 });
             }
-            document.getElementById('segment-modal').style.display = 'flex';
         }
+
+        function openSegment(key) {
+            if (!SEGMENTS[key]) return;
+            segCurrentKey = key;
+            segRange = 'all';                 // fresh open shows the full picture
+            document.getElementById('segment-modal').style.display = 'flex';
+            renderSegment();
+        }
+
+        function setSegRange(r) { segRange = r; renderSegment(); }
+
+        // Move to prev/next metric, keeping the chosen range
+        function navSegment(dir) {
+            const i = SEGMENT_ORDER.indexOf(segCurrentKey);
+            if (i < 0) return;
+            segCurrentKey = SEGMENT_ORDER[(i + dir + SEGMENT_ORDER.length) % SEGMENT_ORDER.length];
+            renderSegment();
+        }
+
+        // Swipe (touch) + arrow keys to move between metrics
+        (function setupSegControls() {
+            const card = document.querySelector('.seg-modal-card');
+            if (card) {
+                let sx = 0, sy = 0;
+                card.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+                card.addEventListener('touchend', e => {
+                    const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+                    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) navSegment(dx < 0 ? 1 : -1);
+                }, { passive: true });
+            }
+            document.addEventListener('keydown', e => {
+                if (document.getElementById('segment-modal').style.display !== 'flex') return;
+                if (e.key === 'ArrowRight') navSegment(1);
+                else if (e.key === 'ArrowLeft') navSegment(-1);
+                else if (e.key === 'Escape') closeSegment();
+            });
+        })();
 
         function countPRs() { const s = snapshotPRs(); return Object.keys(s.data).length + Object.keys(s.strength).length; }
 
