@@ -1019,7 +1019,8 @@
                         </div>
                         <div class="form-group">
                             <label>Course Name</label>
-                            <input type="text" id="grint-course" placeholder="e.g., Pebble Beach">
+                            <input type="text" id="grint-course" list="course-list" autocomplete="off" placeholder="Type or pick a course" onchange="onCourseSelected()">
+                            <datalist id="course-list"></datalist>
                         </div>
                         <div class="form-group">
                             <label>Course Location</label>
@@ -1991,6 +1992,27 @@
             showMessage('import-message', 'success', `Grint round logged! (${score}, ${course})`);
         }
 
+        // Populate the Course Name dropdown from every course in the data (deduped, sorted)
+        function refreshCourseList() {
+            const dl = document.getElementById('course-list');
+            if (!dl) return;
+            const names = [...new Set((appData.golf || [])
+                .map(g => (g.course || '').trim())
+                .filter(Boolean)
+                .filter(n => n.toLowerCase() !== 'simulator'))]
+                .sort((a, b) => a.localeCompare(b));
+            dl.innerHTML = names.map(n => `<option value="${n.replace(/"/g, '&quot;')}"></option>`).join('');
+        }
+
+        // When a known course is picked, auto-fill its location (if blank)
+        function onCourseSelected() {
+            const course = document.getElementById('grint-course').value.trim();
+            const loc = document.getElementById('grint-location');
+            if (!course || (loc.value && loc.value.trim())) return;
+            const match = (appData.golf || []).find(g => (g.course || '').trim().toLowerCase() === course.toLowerCase() && g.location);
+            if (match) loc.value = match.location;
+        }
+
         function renderAllGolfTable() {
             const tbody = document.getElementById('all-golf-table');
             tbody.innerHTML = '';
@@ -2011,6 +2033,7 @@
                 `;
                 tbody.appendChild(row);
             });
+            refreshCourseList();
         }
 
         function deleteGolf(idx) {
