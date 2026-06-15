@@ -536,6 +536,7 @@
                 </div>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span id="sync-status" class="badge" style="background:var(--bg-hover);">Offline</span>
+                    <button class="btn-secondary" onclick="openSettings()" aria-label="Settings" style="padding:8px 12px;"><i class="ti ti-settings"></i></button>
                     <button class="btn-secondary" onclick="doLogout()">Log out</button>
                 </div>
             </div>
@@ -586,6 +587,35 @@
                 <div class="stat-label">Personal Records</div>
                 <div class="stat-value" id="pr-count" style="color:var(--accent);">0</div>
                 <div class="stat-change">Tap to view</div>
+            </div>
+        </div>
+
+        <!-- SETTINGS MODAL -->
+        <div id="settings-modal" class="seg-modal" onclick="if(event.target===this)closeSettings()">
+            <div class="seg-modal-card">
+                <div class="seg-modal-head">
+                    <div class="seg-title"><span class="section-icon"><i class="ti ti-settings"></i></span><span>Settings</span></div>
+                    <button class="seg-close" onclick="closeSettings()" aria-label="Close"><i class="ti ti-x"></i></button>
+                </div>
+                <div style="font-family:'Space Grotesk', sans-serif; font-weight:600; color:var(--text-primary); margin-bottom:8px; font-size:16px;">Oura Ring sync</div>
+                <div class="info-box" style="margin-bottom:16px;">
+                    Oura's API blocks direct browser calls, so the app routes through your own free Cloudflare Worker proxy. Paste your Oura token + Worker URL, Save, Test, then Sync.
+                </div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label>Oura Personal Access Token</label>
+                    <input type="password" id="oura-api-token" placeholder="Paste your token here">
+                </div>
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label>Cloudflare Worker URL (CORS proxy)</label>
+                    <input type="text" id="oura-proxy-url" placeholder="https://your-worker.your-subdomain.workers.dev">
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <button class="btn-primary" onclick="saveOuraToken()">Save</button>
+                    <button class="btn-secondary" onclick="testOuraConnection()">Test Connection</button>
+                    <button class="btn-secondary" onclick="syncOuraDataFromAPI()">Sync Last 30 Days</button>
+                    <a href="https://cloud.ouraring.com/personal-access-tokens" target="_blank" style="color:var(--primary); text-decoration:none; font-size:12px;">Get Token</a>
+                </div>
+                <div id="oura-message" style="margin-top:12px;"></div>
             </div>
         </div>
 
@@ -790,28 +820,8 @@
                     Oura Ring Integration
                 </div>
                 <div class="info-box">
-                    <strong>Auto-sync:</strong> Oura's API blocks direct browser calls, so the app talks to it through your own free Cloudflare Worker proxy. Paste your Oura token + your Worker URL below, then Sync. (No internet / not set up? Manual entry below still works.)
-                </div>
-                <div style="background: var(--bg-hover); padding: 20px; border-radius: var(--radius); margin-bottom: 20px;">
-                    <div class="form-row">
-                        <div class="form-group" style="grid-column: 1 / -1;">
-                            <label>Oura Personal Access Token</label>
-                            <input type="password" id="oura-api-token" placeholder="Paste your token here">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group" style="grid-column: 1 / -1;">
-                            <label>Cloudflare Worker URL (CORS proxy)</label>
-                            <input type="text" id="oura-proxy-url" placeholder="https://your-worker.your-subdomain.workers.dev">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <button class="btn-primary" onclick="saveOuraToken()">Save Token</button>
-                        <button class="btn-secondary" onclick="testOuraConnection()">Test Connection</button>
-                        <button class="btn-secondary" onclick="syncOuraDataFromAPI()">Sync Last 30 Days</button>
-                        <a href="https://cloud.ouraring.com/personal-access-tokens" target="_blank" style="margin-left: 8px; color: var(--primary); text-decoration: none; font-size: 12px; align-self: flex-end;">Get Token</a>
-                    </div>
-                    <div id="oura-message" style="margin-top: 12px;"></div>
+                    Pull your sleep, HRV, readiness &amp; activity straight from your Oura ring. API keys live in <strong>Settings</strong> (the gear icon, top-right).
+                    <div style="margin-top: 12px;"><button class="btn-secondary" onclick="openSettings()"><i class="ti ti-settings" style="margin-right: 6px;"></i>Open Settings &amp; Sync</button></div>
                 </div>
             </div>
 
@@ -3351,6 +3361,9 @@
             document.getElementById('segment-modal').style.display = 'none';
             if (window.segChartInstance) { window.segChartInstance.destroy(); window.segChartInstance = null; }
         }
+
+        function openSettings() { document.getElementById('settings-modal').style.display = 'flex'; }
+        function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
 
         // Render the currently-selected segment at the current range (re-runnable)
         function renderSegment() {
