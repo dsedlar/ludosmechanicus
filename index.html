@@ -1712,6 +1712,38 @@
             }
         };
 
+        // Generic full-body bodyweight routine (no equipment) — used when there's no weight room
+        const BODYWEIGHT_TEMPLATE = [
+            { name: 'Jump Squats', sets: 4, reps: '8', rpe: '8', note: 'Explosive — drive through the floor', bodyweight: true },
+            { name: 'Push-Ups', sets: 4, reps: '12-20', rpe: '7-8', bodyweight: true },
+            { name: 'Reverse Lunges', sets: 3, reps: '10 ea', rpe: '7', bodyweight: true },
+            { name: 'Pike Push-Ups', sets: 3, reps: '8-12', rpe: '7-8', note: 'Shoulders', bodyweight: true },
+            { name: 'Plank', sets: 3, reps: '45-60 sec', rpe: '7', bodyweight: true },
+            { name: 'Side Plank + Reach-Through', sets: 3, reps: '10 ea', rpe: '7', note: 'Rotational core for the swing', bodyweight: true },
+            { name: 'Bird-Dog', sets: 3, reps: '10 ea', rpe: '6', bodyweight: true },
+            { name: 'Glute Bridge', sets: 3, reps: '15', rpe: '6', bodyweight: true },
+            { name: 'Finisher: Burpees', sets: 1, reps: '8-10 min AMRAP', rpe: '8', bodyweight: true }
+        ];
+
+        // Swap a single day between its gym workout and the bodyweight routine (preserves gym weights)
+        function toggleWorkoutMode(dayKey) {
+            const day = appData.currentWeek.days[dayKey];
+            if (!day.bodyweight) {
+                day.gymExercises = day.exercises;   // stash gym list (weights + completion)
+                day.exercises = BODYWEIGHT_TEMPLATE.map(ex => ({ ...ex, weight: 0, actualRpe: null, completed: false }));
+                day.bodyweight = true;
+            } else {
+                day.exercises = day.gymExercises || day.exercises;
+                delete day.gymExercises;
+                day.bodyweight = false;
+            }
+            day.completed = day.exercises.length > 0 && day.exercises.every(e => e.completed);
+            if (!day.completed) day.completedDate = null;
+            saveData(appData);
+            renderWorkout(parseInt(dayKey.replace('day', ''), 10));
+            checkWeekCompletion();
+        }
+
         function generateWeek(weekNum) {
             const week = {
                 weekNum: weekNum,
@@ -1792,18 +1824,21 @@
             
             let html = `
                 <div style="margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; flex-wrap: wrap;">
                         <div>
-                            <h3 style="margin: 0; color: var(--text-primary);">${day.name}</h3>
+                            <h3 style="margin: 0; color: var(--text-primary);">${day.name}${day.bodyweight ? ' <span style="color: var(--accent); font-size: 13px; font-weight: 600;">· Bodyweight</span>' : ''}</h3>
                             <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
                                 ${day.completed ? '✓ Completed' : 'Not completed today'}
                             </div>
                         </div>
+                        <button class="btn-secondary" style="font-size: 13px; padding: 8px 14px;" onclick="toggleWorkoutMode('${dayKey}')">
+                            <i class="ti ${day.bodyweight ? 'ti-barbell' : 'ti-home'}" style="margin-right: 6px;"></i>${day.bodyweight ? 'Back to gym workout' : 'No weights? Bodyweight'}
+                        </button>
                     </div>
             `;
 
             day.exercises.forEach((ex, idx) => {
-                const isWeight = !ex.reps.includes('sec') && !ex.reps.includes('stretch') && !ex.reps.includes('circuit') && !ex.reps.includes('AMRAP');
+                const isWeight = !ex.bodyweight && !ex.reps.includes('sec') && !ex.reps.includes('stretch') && !ex.reps.includes('circuit') && !ex.reps.includes('AMRAP');
                 const suggestion = isWeight ? getSuggestedWeight(ex.name) : null;
                 const previous = isWeight ? getPreviousWeight(ex.name) : null;
                 
@@ -1932,8 +1967,10 @@
 
             // Apply progression: 5-7% increase based on RPE or consistency
             ['day1', 'day2', 'day3', 'day4'].forEach(dayKey => {
+                const srcDay = currentWeek.days[dayKey];
+                const srcExercises = (srcDay.bodyweight && srcDay.gymExercises) ? srcDay.gymExercises : srcDay.exercises;  // use stashed gym weights if on bodyweight
                 nextWeek.days[dayKey].exercises.forEach((nextEx, idx) => {
-                    const currentEx = currentWeek.days[dayKey].exercises[idx];
+                    const currentEx = srcExercises[idx];
                     if (currentEx && currentEx.weight > 0) {
                         // Increase by 5% default, 7% if RPE was high
                         const increase = currentEx.weight * (currentEx.actualRpe >= 8 ? 0.07 : 0.05);
@@ -3120,7 +3157,8 @@
                 ['day1', 'day2', 'day3', 'day4'].forEach(dk => {
                     const day = w.days && w.days[dk];
                     if (!day || !day.exercises) return;
-                    day.exercises.forEach(ex => {
+                    const list = day.gymExercises ? day.gymExercises.concat(day.exercises) : day.exercises;
+                    list.forEach(ex => {
                         const wt = parseFloat(ex.weight) || 0;
                         if (wt <= 0) return;
                         const repsNum = parseRepsNumber(ex.reps);
