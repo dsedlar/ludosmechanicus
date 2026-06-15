@@ -3097,9 +3097,18 @@
                 }
             }
 
-            if (appData.ouraApiData.length > 0) {
-                const avgSleep = appData.ouraApiData.reduce((sum, o) => sum + o.sleepScore, 0) / appData.ouraApiData.length;
+            const sleepNights = appData.ouraApiData.filter(o => o.sleepScore > 0);
+            const sleepChangeEl = document.getElementById('sleep-change');
+            if (sleepNights.length > 0) {
+                const avgSleep = sleepNights.reduce((sum, o) => sum + o.sleepScore, 0) / sleepNights.length;
                 document.getElementById('sleep-score').textContent = avgSleep.toFixed(0);
+                const q = avgSleep >= 85 ? 'Optimal recovery' : avgSleep >= 70 ? 'Good recovery' : 'Pay attention';
+                sleepChangeEl.textContent = `${q} · ${sleepNights.length} night${sleepNights.length === 1 ? '' : 's'}`;
+                sleepChangeEl.style.color = avgSleep >= 70 ? 'var(--success)' : avgSleep >= 60 ? 'var(--warning)' : 'var(--accent-power)';
+            } else {
+                document.getElementById('sleep-score').textContent = '—';
+                sleepChangeEl.textContent = 'No sleep data yet';
+                sleepChangeEl.style.color = 'var(--text-secondary)';
             }
 
             const visList = getVisceralSeries();
