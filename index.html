@@ -553,7 +553,7 @@
                 <div class="stat-change" id="strength-change">This week</div>
             </div>
             <div class="stat-card" onclick="openSegment('cardio')">
-                <div class="stat-label">Cardio Sessions</div>
+                <div class="stat-label">Cardio</div>
                 <div class="stat-value"><span id="cardio-sessions">0</span><span class="trend-arrow" id="cardio-arrow"></span></div>
                 <div class="stat-change" id="cardio-change">This week</div>
             </div>
@@ -563,7 +563,7 @@
                 <div class="stat-change" id="rounds-change">All time</div>
             </div>
             <div class="stat-card" onclick="openSegment('handicap')">
-                <div class="stat-label">Current Handicap</div>
+                <div class="stat-label">Handicap</div>
                 <div class="stat-value"><span id="current-handicap">—</span><span class="trend-arrow" id="handicap-arrow"></span></div>
                 <div class="stat-change" id="handicap-trend">HCP Index</div>
             </div>
@@ -578,7 +578,7 @@
                 <div class="stat-change" id="weight-change">Goal: 225 lb</div>
             </div>
             <div class="stat-card" onclick="openSegment('sleep')">
-                <div class="stat-label">Avg Sleep Score</div>
+                <div class="stat-label">Sleep Score</div>
                 <div class="stat-value"><span id="sleep-score">—</span><span class="trend-arrow" id="sleep-arrow"></span></div>
                 <div class="stat-change" id="sleep-change">Oura</div>
             </div>
@@ -588,19 +588,14 @@
                 <div class="stat-change" id="visceral-change">Target <10</div>
             </div>
             <div class="stat-card" onclick="switchTab('reading')">
-                <div class="stat-label">Reading Streak</div>
+                <div class="stat-label">Pages</div>
                 <div class="stat-value"><span id="reading-streak">0</span></div>
-                <div class="stat-change" id="reading-change">days</div>
+                <div class="stat-change" id="reading-change">Read This Week</div>
             </div>
             <div class="stat-card" onclick="switchTab('fasting')">
                 <div class="stat-label">Fasting</div>
                 <div class="stat-value"><span id="fasting-stat">—</span></div>
                 <div class="stat-change" id="fasting-change">Tap to start</div>
-            </div>
-            <div class="stat-card" onclick="switchTab('prs')">
-                <div class="stat-label">Personal Records</div>
-                <div class="stat-value" id="pr-count" style="color:var(--accent);">0</div>
-                <div class="stat-change">Tap to view</div>
             </div>
         </div>
 
@@ -3074,13 +3069,13 @@
             sChange.textContent = thisWeekStrength >= 4 ? 'Week complete 🎉' : thisWeekStrength >= 3 ? 'On track this week' : 'Below weekly target';
             sChange.style.color = thisWeekStrength >= 3 ? 'var(--success)' : 'var(--warning)';
 
-            // ----- Cardio: total count, this-week activity + trend vs last week -----
-            document.getElementById('cardio-sessions').textContent = appData.cardio.length;
+            // ----- Cardio: this-week sessions + trend vs last week -----
             const cThis = appData.cardio.filter(c => (now - new Date(c.date)) / DAY <= 7).length;
             const cLast = appData.cardio.filter(c => { const dd = (now - new Date(c.date)) / DAY; return dd > 7 && dd <= 14; }).length;
+            document.getElementById('cardio-sessions').textContent = cThis;
             trendArrow('cardio-arrow', cThis > cLast ? 'up' : cThis < cLast ? 'down' : null, cThis >= cLast);
             const cChange = document.getElementById('cardio-change');
-            cChange.textContent = `${cThis} this week`;
+            cChange.textContent = 'Sessions This Week';
             cChange.style.color = cThis > 0 ? 'var(--success)' : 'var(--text-secondary)';
 
             // ----- Golf rounds: total + this-year count -----
@@ -3188,17 +3183,13 @@
                 trendArrow('visceral-arrow', null);
             }
 
-            // ----- Reading streak -----
+            // ----- Pages read this week -----
             const rs = document.getElementById('reading-streak');
             if (rs) {
-                const streak = readingStreak();
-                rs.textContent = streak;
+                const pages = pagesReadThisWeek();
+                rs.textContent = pages;
                 const rc = document.getElementById('reading-change');
-                const curBook = (appData.books || []).find(b => b.status !== 'finished');
-                if (rc) {
-                    rc.textContent = curBook ? curBook.title.slice(0, 22) : (streak > 0 ? 'day streak 🔥' : 'Start a book');
-                    rc.style.color = streak > 0 ? 'var(--success)' : 'var(--text-secondary)';
-                }
+                if (rc) { rc.textContent = 'Read This Week'; rc.style.color = pages > 0 ? 'var(--success)' : 'var(--text-secondary)'; }
             }
 
             // ----- Fasting -----
@@ -3665,6 +3656,22 @@
             const dates = [];
             (appData.books || []).forEach(b => (b.log || []).forEach(l => dates.push(l.date)));
             return dayStreak(dates);
+        }
+        // Pages read during the current Mon–Sun week (sum of daily page deltas)
+        function pagesReadThisWeek() {
+            const { start, end } = weekBounds();
+            const inWk = ds => { const d = new Date(ds + 'T00:00:00'); return d >= start && d <= end; };
+            let total = 0;
+            (appData.books || []).forEach(b => {
+                const logs = (b.log || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+                let prev = 0;
+                logs.forEach(l => {
+                    const delta = Math.max(0, (l.page || 0) - prev);
+                    if (inWk(l.date)) total += delta;
+                    prev = l.page || 0;
+                });
+            });
+            return total;
         }
         function updateBookPage(id, val) {
             const b = (appData.books || []).find(x => x.id === id); if (!b) return;
