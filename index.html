@@ -790,14 +790,19 @@
                     Oura Ring Integration
                 </div>
                 <div class="info-box">
-                    <strong>Current Workflow (Now):</strong> Manually log your Oura data each morning—takes 1 minute. All correlations and trends work perfectly.<br><br>
-                    <strong>Future Enhancement:</strong> API auto-sync will be added to pull data automatically from your Oura account.
+                    <strong>Auto-sync:</strong> Oura's API blocks direct browser calls, so the app talks to it through your own free Cloudflare Worker proxy. Paste your Oura token + your Worker URL below, then Sync. (No internet / not set up? Manual entry below still works.)
                 </div>
                 <div style="background: var(--bg-hover); padding: 20px; border-radius: var(--radius); margin-bottom: 20px;">
                     <div class="form-row">
                         <div class="form-group" style="grid-column: 1 / -1;">
                             <label>Oura Personal Access Token</label>
                             <input type="password" id="oura-api-token" placeholder="Paste your token here">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label>Cloudflare Worker URL (CORS proxy)</label>
+                            <input type="text" id="oura-proxy-url" placeholder="https://your-worker.your-subdomain.workers.dev">
                         </div>
                     </div>
                     <div class="form-row">
@@ -1390,47 +1395,43 @@
 
         // ============ OURA API FUNCTIONS ============
         function saveOuraToken() {
-            const token = document.getElementById('oura-api-token').value;
+            const token = document.getElementById('oura-api-token').value.trim();
+            const proxy = document.getElementById('oura-proxy-url').value.trim();
             if (!token) {
                 showMessage('oura-message', 'error', 'Token required');
                 return;
             }
             appData.ouraToken = token;
+            appData.ouraProxyUrl = proxy;
             saveData(appData);
-            showMessage('oura-message', 'success', '✓ Token saved! Click "Test Connection" to verify.');
+            showMessage('oura-message', 'success', '✓ Saved! Click "Test Connection" to verify.');
         }
 
-        function testOuraConnection() {
-            if (!appData.ouraToken) {
-                showMessage('oura-message', 'error', 'No token saved. Add token first.');
-                return;
+        function ouraBase() {
+            return (appData.ouraProxyUrl || '').trim().replace(/\/+$/, '');
+        }
+        function ouraFetch(path) {
+            const base = ouraBase();
+            if (!base) return Promise.reject(new Error('Set your Cloudflare Worker URL first.'));
+            return fetch(base + path, { method: 'GET', headers: { 'Authorization': `Bearer ${appData.ouraToken}` } });
+        }
+
+        async function testOuraConnection() {
+            if (!appData.ouraToken) { showMessage('oura-message', 'error', 'No token saved. Add token first.'); return; }
+            if (!ouraBase()) { showMessage('oura-message', 'error', 'Add your Cloudflare Worker URL first.'); return; }
+            showMessage('oura-message', 'info', 'Testing connection…');
+            try {
+                const r = await ouraFetch('/v2/usercollection/personal_info');
+                if (!r.ok) {
+                    if (r.status === 401) throw new Error('Invalid Oura token.');
+                    throw new Error('API error: ' + r.status);
+                }
+                await r.json();
+                showMessage('oura-message', 'success', '✓ Connected! Token + proxy are working.');
+            } catch (e) {
+                console.error('Oura test failed:', e);
+                showMessage('oura-message', 'error', 'Connection failed: ' + e.message + ' — check the Worker URL and token.');
             }
-
-            showMessage('oura-message', 'info', 'Testing connection...');
-
-            fetch('https://api.ouraring.com/v2/usercollection/daily_sleep?limit=1', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${appData.ouraToken}`,
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    if (response.status === 401) {
-                        throw new Error('Invalid token. Check your Oura Personal Access Token.');
-                    }
-                    throw new Error(`API error: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                showMessage('oura-message', 'success', '✓ Connection successful! Your token is valid.');
-            })
-            .catch(error => {
-                console.error('Oura API Error:', error);
-                showMessage('oura-message', 'error', `Connection failed: ${error.message}`);
-            });
         }
 
         async function syncOuraDataFromAPI() {
@@ -1438,49 +1439,34 @@
                 showMessage('oura-message', 'error', 'No token saved. Add token first.');
                 return;
             }
+            if (!ouraBase()) {
+                showMessage('oura-message', 'error', 'Add your Cloudflare Worker URL first.');
+                return;
+            }
 
             showMessage('oura-message', 'info', 'Syncing Oura data (this may take a moment)...');
 
             try {
-                // Fetch sleep data
-                const sleepResponse = await fetch('https://api.ouraring.com/v2/usercollection/daily_sleep', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${appData.ouraToken}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
+                const end = new Date().toISOString().slice(0, 10);
+                const startD = new Date(); startD.setDate(startD.getDate() - 30);
+                const q = `?start_date=${startD.toISOString().slice(0, 10)}&end_date=${end}`;
 
-                if (!sleepResponse.ok) {
-                    throw new Error(`Sleep API error: ${sleepResponse.status}`);
-                }
+                const [sleepData, sleepDetail, readinessData, activityData] = await Promise.all([
+                    ouraFetch(`/v2/usercollection/daily_sleep${q}`).then(r => { if (!r.ok) throw new Error('Sleep API error: ' + r.status); return r.json(); }),
+                    ouraFetch(`/v2/usercollection/sleep${q}`).then(r => r.ok ? r.json() : { data: [] }),
+                    ouraFetch(`/v2/usercollection/daily_readiness${q}`).then(r => r.ok ? r.json() : { data: [] }),
+                    ouraFetch(`/v2/usercollection/daily_activity${q}`).then(r => r.ok ? r.json() : { data: [] })
+                ]);
 
-                const sleepData = await sleepResponse.json();
                 const sleepItems = sleepData.data || [];
-
-                // Fetch readiness data
-                const readinessResponse = await fetch('https://api.ouraring.com/v2/usercollection/daily_readiness', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${appData.ouraToken}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                const readinessData = await readinessResponse.json();
                 const readinessItems = readinessData.data || [];
-
-                // Fetch activity data
-                const activityResponse = await fetch('https://api.ouraring.com/v2/usercollection/daily_activity', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${appData.ouraToken}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-
-                const activityData = await activityResponse.json();
                 const activityItems = activityData.data || [];
+
+                // main sleep period per day → duration + HRV (daily_sleep only has the score)
+                const sleepDetailByDay = {};
+                (sleepDetail.data || []).forEach(s => {
+                    if (!sleepDetailByDay[s.day] || (s.total_sleep_duration || 0) > (sleepDetailByDay[s.day].total_sleep_duration || 0)) sleepDetailByDay[s.day] = s;
+                });
 
                 // Merge data by date
                 const mergedData = {};
@@ -1489,8 +1475,11 @@
                     const date = sleep.day;
                     if (!mergedData[date]) mergedData[date] = { date };
                     mergedData[date].sleepScore = sleep.score || 0;
-                    mergedData[date].sleepDuration = sleep.total_sleep_duration ? Math.round(sleep.total_sleep_duration / 3600) : 0;
-                    mergedData[date].hrv = sleep.average_hrv || 0;
+                    const det = sleepDetailByDay[date];
+                    if (det) {
+                        if (det.total_sleep_duration) mergedData[date].sleepDuration = Math.round(det.total_sleep_duration / 3600 * 10) / 10;
+                        if (det.average_hrv) mergedData[date].hrv = Math.round(det.average_hrv);
+                    }
                 });
 
                 readinessItems.forEach(readiness => {
@@ -3483,6 +3472,7 @@
             document.getElementById('oura-date').value = today;
             document.getElementById('weight-date').value = today;
             document.getElementById('oura-api-token').value = appData.ouraToken || '';
+            document.getElementById('oura-proxy-url').value = appData.ouraProxyUrl || '';
 
             populateGolfSelects();
             renderAllGolfTable();
