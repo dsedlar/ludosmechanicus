@@ -1019,8 +1019,9 @@
                         </div>
                         <div class="form-group">
                             <label>Course Name</label>
-                            <input type="text" id="grint-course" list="course-list" autocomplete="off" placeholder="Type or pick a course" onchange="onCourseSelected()">
+                            <input type="text" id="grint-course" list="course-list" autocomplete="off" placeholder="Type 3+ letters to search courses" oninput="onCourseInput()" onchange="onCourseSelected()">
                             <datalist id="course-list"></datalist>
+                            <div id="course-search-status" style="font-size:11px; color:var(--text-secondary); margin-top:4px; min-height:14px;"></div>
                         </div>
                         <div class="form-group">
                             <label>Course Location</label>
@@ -1992,25 +1993,79 @@
             showMessage('import-message', 'success', `Grint round logged! (${score}, ${course})`);
         }
 
-        // Populate the Course Name dropdown from every course in the data (deduped, sorted)
+        // Populate the Course Name dropdown: your own courses + any live search results
+        let courseSearchResults = [];        // [{name, location}] from the last OSM search
+        const courseSearchLocations = {};    // name(lower) -> location
+        const courseSearchCache = {};        // query(lower) -> results
+        let courseSearchTimer = null;
+
         function refreshCourseList() {
             const dl = document.getElementById('course-list');
             if (!dl) return;
-            const names = [...new Set((appData.golf || [])
-                .map(g => (g.course || '').trim())
-                .filter(Boolean)
-                .filter(n => n.toLowerCase() !== 'simulator'))]
-                .sort((a, b) => a.localeCompare(b));
+            const own = (appData.golf || []).map(g => (g.course || '').trim()).filter(Boolean).filter(n => n.toLowerCase() !== 'simulator');
+            const found = courseSearchResults.map(c => c.name);
+            const names = [...new Set([...found, ...own])].sort((a, b) => a.localeCompare(b));
             dl.innerHTML = names.map(n => `<option value="${n.replace(/"/g, '&quot;')}"></option>`).join('');
         }
 
-        // When a known course is picked, auto-fill its location (if blank)
+        function setCourseStatus(msg) {
+            const el = document.getElementById('course-search-status');
+            if (el) el.textContent = msg;
+        }
+
+        // Debounced trigger as the user types (respects OSM ~1 req/sec via the delay + cache)
+        function onCourseInput() {
+            const text = document.getElementById('grint-course').value.trim();
+            clearTimeout(courseSearchTimer);
+            if (text.length < 3) { setCourseStatus(''); return; }
+            courseSearchTimer = setTimeout(() => searchCourses(text), 650);
+        }
+
+        async function searchCourses(text) {
+            const key = text.toLowerCase();
+            if (courseSearchCache[key]) { applyCourseResults(courseSearchCache[key]); return; }
+            setCourseStatus('Searching courses…');
+            const q = /golf/i.test(text) ? text : text + ' golf course';
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&addressdetails=1&q=${encodeURIComponent(q)}`, { headers: { 'Accept': 'application/json' } });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                const seen = new Set(), out = [];
+                data.filter(r => r.type === 'golf_course').forEach(r => {
+                    const a = r.address || {};
+                    const city = a.city || a.town || a.village || a.hamlet || a.suburb || '';
+                    const region = a.state || a.country || '';
+                    const name = r.name || (r.display_name || '').split(',')[0];
+                    if (!name) return;
+                    const k = name.toLowerCase();
+                    if (seen.has(k)) return;
+                    seen.add(k);
+                    out.push({ name, location: [city, region].filter(Boolean).join(', ') });
+                });
+                courseSearchCache[key] = out;
+                applyCourseResults(out);
+            } catch (e) {
+                console.error('Course search failed:', e);
+                setCourseStatus('Search unavailable (offline?) — you can still type the course in.');
+            }
+        }
+
+        function applyCourseResults(courses) {
+            courseSearchResults = courses;
+            courses.forEach(c => { courseSearchLocations[c.name.toLowerCase()] = c.location; });
+            refreshCourseList();
+            setCourseStatus(courses.length ? `${courses.length} course${courses.length === 1 ? '' : 's'} found — pick from the list` : 'No courses found — type it in manually');
+        }
+
+        // When a course is chosen, auto-fill its location (if blank): own data first, then search results
         function onCourseSelected() {
             const course = document.getElementById('grint-course').value.trim();
             const loc = document.getElementById('grint-location');
             if (!course || (loc.value && loc.value.trim())) return;
             const match = (appData.golf || []).find(g => (g.course || '').trim().toLowerCase() === course.toLowerCase() && g.location);
-            if (match) loc.value = match.location;
+            if (match) { loc.value = match.location; return; }
+            const sl = courseSearchLocations[course.toLowerCase()];
+            if (sl) loc.value = sl;
         }
 
         function renderAllGolfTable() {
