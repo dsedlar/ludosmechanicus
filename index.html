@@ -688,14 +688,10 @@
                 <div class="section-title"><div class="section-icon"><i class="ti ti-target"></i></div>Perfect Week</div>
                 <div id="perfect-week"></div>
             </div>
-            <div class="section">
-                <div class="section-title"><div class="section-icon"><i class="ti ti-bolt"></i></div>Quick Actions</div>
-                <div id="quick-actions" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
-            </div>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:var(--gap);">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:var(--gap);">
                 <div class="section" style="margin:0;">
-                    <div class="section-title"><div class="section-icon"><i class="ti ti-list-check"></i></div>Today</div>
-                    <div id="today-habits" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+                    <div class="section-title"><div class="section-icon"><i class="ti ti-bolt"></i></div>Quick Actions</div>
+                    <div id="quick-actions" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
                 </div>
                 <div class="section" style="margin:0;">
                     <div class="section-title"><div class="section-icon"><i class="ti ti-notebook"></i></div>Journaling</div>
@@ -3934,7 +3930,7 @@
                     <i class="ti ${g.icon}" style="width:18px; text-align:center; color:${g.metFlag ? 'var(--success)' : 'var(--text-secondary)'};"></i>
                     <div style="flex:1;">
                         <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;"><span style="color:var(--text-primary);">${g.label}</span><span style="color:${g.metFlag ? 'var(--success)' : 'var(--text-secondary)'};">${valTxt}${g.metFlag ? ' ✓' : ''}</span></div>
-                        <div style="background:var(--bg-card); height:6px; border-radius:3px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:${g.metFlag ? 'var(--success)' : 'var(--grad)'};"></div></div>
+                        <div style="background:rgba(148,163,184,0.18); height:6px; border-radius:3px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:${g.metFlag ? 'var(--success)' : 'var(--grad)'};"></div></div>
                     </div>
                 </div>`;
             }).join('');
@@ -3947,7 +3943,6 @@
         function renderDashboard() {
             renderPerfectWeek();
             renderQuickActions();
-            renderTodayHabits();
             renderJournal();
         }
 
