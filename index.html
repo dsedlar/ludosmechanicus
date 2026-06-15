@@ -1015,7 +1015,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Date Played</label>
-                            <input type="date" id="grint-date">
+                            <input type="date" id="grint-date" onchange="onRoundDateChange()">
                         </div>
                         <div class="form-group">
                             <label>Course Name</label>
@@ -1113,6 +1113,10 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label>Temp (°F)</label>
+                            <input type="number" id="grint-temp" placeholder="72">
+                        </div>
+                        <div class="form-group">
                             <label>Course Condition</label>
                             <select id="grint-condition">
                                 <option value="">Select condition</option>
@@ -1138,11 +1142,49 @@
                     </div>
 
                     <div class="form-row">
-                        <div style="grid-column: 1 / -1;">
-                            <label>Notes & Observations</label>
-                            <textarea id="grint-notes" placeholder="How did you play? Any swing improvements? Struggles? Good shots?"></textarea>
+                        <div style="grid-column:1 / -1; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                            <button type="button" class="btn-secondary" style="font-size:13px; padding:8px 14px;" onclick="fetchWeatherForRound(true)"><i class="ti ti-cloud" style="margin-right:6px;"></i>Auto-fill weather from date + course</button>
+                            <span id="grint-weather-status" style="font-size:12px; color:var(--text-secondary);"></span>
                         </div>
                     </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>How did you play?</label>
+                            <select id="grint-play">
+                                <option value="">Select…</option>
+                                <option>Career round</option>
+                                <option>Great</option>
+                                <option>Good</option>
+                                <option>Average</option>
+                                <option>Below average</option>
+                                <option>Rough day</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Swing Improvements</label>
+                            <select id="grint-swing-select" onchange="addChip('swing', this)"></select>
+                            <div id="grint-swing-chips" class="chip-wrap"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Struggles</label>
+                            <select id="grint-struggles-select" onchange="addChip('struggles', this)"></select>
+                            <div id="grint-struggles-chips" class="chip-wrap"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div style="grid-column: 1 / -1;">
+                            <label>Additional Notes</label>
+                            <textarea id="grint-notes" placeholder="Anything else — standout shots, conditions, takeaways…"></textarea>
+                        </div>
+                    </div>
+                    <style>
+                        .chip-wrap { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+                        .chip { display:inline-flex; align-items:center; gap:6px; background:var(--bg-hover); border:1px solid var(--border); color:var(--text-primary); padding:4px 10px; border-radius:14px; font-size:12px; }
+                        .chip .chip-x { cursor:pointer; color:var(--text-secondary); font-weight:700; line-height:1; }
+                        .chip .chip-x:hover { color:var(--accent-power); }
+                    </style>
 
                     <button class="btn-primary" onclick="addGrintRound()" style="margin-top: 12px;">Log Grint Round</button>
                 </div>
@@ -1951,6 +1993,10 @@
             const energy = parseFloat(document.getElementById('grint-energy').value) || 0;
             const roundType = document.getElementById('grint-type').value;
             const notes = document.getElementById('grint-notes').value;
+            const play = document.getElementById('grint-play').value;
+            const temp = parseFloat(document.getElementById('grint-temp').value) || 0;
+            const swingImprovements = grintSwing.slice();
+            const struggles = grintStruggles.slice();
 
             if (!date || !course || !score) {
                 showMessage('import-message', 'error', 'Date, course, and score required');
@@ -1982,6 +2028,12 @@
                 energy,
                 roundType,
                 notes,
+                play,
+                temp,
+                swingImprovements,
+                struggles,
+                lat: selectedCourseCoords ? selectedCourseCoords.lat : null,
+                lon: selectedCourseCoords ? selectedCourseCoords.lon : null,
                 source: 'grint'
             });
 
@@ -1996,7 +2048,15 @@
             document.getElementById('grint-score').value = '';
             document.getElementById('grint-handicap').value = '';
             document.getElementById('grint-notes').value = '';
-            // ... other fields
+            document.getElementById('grint-play').value = '';
+            document.getElementById('grint-temp').value = '';
+            document.getElementById('grint-weather').value = '';
+            document.getElementById('grint-condition').value = '';
+            document.getElementById('grint-energy').value = '';
+            grintSwing = []; grintStruggles = [];
+            renderChips('swing'); renderChips('struggles');
+            setWeatherStatus('');
+            selectedCourseCoords = null;
 
             renderAllGolfTable();
             updateStats();
@@ -2062,8 +2122,10 @@
             document.getElementById('grint-course').value = c.name;
             const loc = document.getElementById('grint-location');
             if (c.location && !(loc.value && loc.value.trim())) loc.value = c.location;
+            selectedCourseCoords = (c.lat && c.lon) ? { lat: c.lat, lon: c.lon } : null;
             hideCourseDropdown();
             setCourseStatus('');
+            if (document.getElementById('grint-date').value) fetchWeatherForRound(false);
         }
 
         function hideCourseDropdown() {
@@ -2075,6 +2137,7 @@
         function onCourseInput() {
             const text = document.getElementById('grint-course').value.trim();
             clearTimeout(courseSearchTimer);
+            selectedCourseCoords = null;            // typing a new course invalidates picked coords
             renderCourseDropdown();                 // show own matches immediately
             if (text.length < 3) { setCourseStatus(''); return; }
             courseSearchTimer = setTimeout(() => searchCourses(text), 650);
@@ -2099,7 +2162,7 @@
                     const k = name.toLowerCase();
                     if (seen.has(k)) return;
                     seen.add(k);
-                    out.push({ name, location: [city, region].filter(Boolean).join(', ') });
+                    out.push({ name, location: [city, region].filter(Boolean).join(', '), lat: parseFloat(r.lat), lon: parseFloat(r.lon) });
                 });
                 courseSearchCache[key] = out;
                 applyCourseResults(out);
@@ -2126,6 +2189,80 @@
             const sl = courseSearchLocations[course.toLowerCase()];
             if (sl) loc.value = sl;
         }
+
+        // ----- Round notes (chips) + weather auto-fill -----
+        const SWING_OPTIONS = ['Driver / tee shots', 'Iron play', 'Wedges / short game', 'Putting', 'Chipping', 'Bunker play', 'Tempo / rhythm', 'Ball striking', 'Course management', 'Mental game / focus', 'Alignment / setup', 'Distance control'];
+        const STRUGGLE_OPTIONS = ['Driver accuracy', 'Slice', 'Hook', 'Iron consistency', 'Putting / 3-putts', 'Short game', 'Bunker play', 'Distance control', 'Tempo / rushing', 'Mental game / focus', 'Course management', 'Fatigue', 'First-tee nerves'];
+        let grintSwing = [], grintStruggles = [], selectedCourseCoords = null;
+
+        function populateGolfSelects() {
+            const fill = (id, opts, ph) => { const s = document.getElementById(id); if (!s) return; s.innerHTML = `<option value="">${ph}</option>` + opts.map(o => `<option>${escHtml(o)}</option>`).join(''); };
+            fill('grint-swing-select', SWING_OPTIONS, 'Add an improvement…');
+            fill('grint-struggles-select', STRUGGLE_OPTIONS, 'Add a struggle…');
+        }
+
+        function addChip(group, sel) {
+            const val = sel.value; sel.value = '';
+            if (!val) return;
+            const arr = group === 'swing' ? grintSwing : grintStruggles;
+            if (!arr.includes(val)) arr.push(val);
+            renderChips(group);
+        }
+        function removeChip(group, val) {
+            if (group === 'swing') grintSwing = grintSwing.filter(v => v !== val);
+            else grintStruggles = grintStruggles.filter(v => v !== val);
+            renderChips(group);
+        }
+        function renderChips(group) {
+            const arr = group === 'swing' ? grintSwing : grintStruggles;
+            const el = document.getElementById(group === 'swing' ? 'grint-swing-chips' : 'grint-struggles-chips');
+            if (!el) return;
+            el.innerHTML = arr.map(v => `<span class="chip">${escHtml(v)}<span class="chip-x" onclick="removeChip('${group}', '${v.replace(/'/g, "\\'")}')">×</span></span>`).join('');
+        }
+
+        function setWeatherStatus(msg) { const el = document.getElementById('grint-weather-status'); if (el) el.textContent = msg; }
+
+        // Map a WMO weather code (+ wind) to one of our weather options
+        function weatherFromCode(code, wind) {
+            const rain = [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 99];
+            if (rain.includes(code)) return 'rainy';
+            if (wind >= 20) return 'windy';
+            if ([2, 3, 45, 48].includes(code)) return 'cloudy';
+            if ([0, 1].includes(code)) return 'sunny';
+            return 'mixed';
+        }
+
+        // Pull historical weather (Open-Meteo, keyless) for the round's date + course location
+        async function fetchWeatherForRound(manual) {
+            const date = document.getElementById('grint-date').value;
+            const course = document.getElementById('grint-course').value.trim();
+            if (!date || !course) { if (manual) setWeatherStatus('Enter the date and course first.'); return; }
+            setWeatherStatus('Fetching weather…');
+            try {
+                let coords = selectedCourseCoords;
+                if (!coords) {  // course typed manually — geocode it
+                    const loc = document.getElementById('grint-location').value.trim();
+                    const q = [course, loc].filter(Boolean).join(', ');
+                    const gr = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(q)}`);
+                    const gd = await gr.json();
+                    if (gd && gd[0]) coords = { lat: parseFloat(gd[0].lat), lon: parseFloat(gd[0].lon) };
+                }
+                if (!coords) { setWeatherStatus('Could not locate that course.'); return; }
+                const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 5);
+                const base = new Date(date) < cutoff ? 'https://archive-api.open-meteo.com/v1/archive' : 'https://api.open-meteo.com/v1/forecast';
+                const url = `${base}?latitude=${coords.lat}&longitude=${coords.lon}&start_date=${date}&end_date=${date}&daily=temperature_2m_max,temperature_2m_min,weather_code,wind_speed_10m_max&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto`;
+                const wd = await (await fetch(url)).json();
+                const dl = wd.daily;
+                if (!dl || !dl.time || !dl.time.length || dl.temperature_2m_max[0] == null) { setWeatherStatus('No weather data for that date yet.'); return; }
+                const hi = Math.round(dl.temperature_2m_max[0]), lo = Math.round(dl.temperature_2m_min[0]);
+                const cond = weatherFromCode(dl.weather_code[0], dl.wind_speed_10m_max[0]);
+                document.getElementById('grint-temp').value = hi;
+                document.getElementById('grint-weather').value = cond;
+                setWeatherStatus(`✓ ${hi}°F · ${cond[0].toUpperCase() + cond.slice(1)} (high ${hi}° / low ${lo}°)`);
+            } catch (e) { console.error('Weather fetch failed:', e); setWeatherStatus('Weather lookup failed — fill it in manually.'); }
+        }
+
+        function onRoundDateChange() { if (document.getElementById('grint-course').value.trim()) fetchWeatherForRound(false); }
 
         function renderAllGolfTable() {
             const tbody = document.getElementById('all-golf-table');
@@ -3219,6 +3356,7 @@
             document.getElementById('weight-date').value = today;
             document.getElementById('oura-api-token').value = appData.ouraToken || '';
 
+            populateGolfSelects();
             renderAllGolfTable();
             renderOuraApiTable();
             renderCardioHistory();
