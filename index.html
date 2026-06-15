@@ -690,17 +690,23 @@
         <!-- DASHBOARD -->
         <div id="dashboard" class="tab-content active">
             <div class="section">
+                <div class="section-title"><div class="section-icon"><i class="ti ti-target"></i></div>Perfect Week</div>
+                <div id="perfect-week"></div>
+            </div>
+            <div class="section">
                 <div class="section-title"><div class="section-icon"><i class="ti ti-bolt"></i></div>Quick Actions</div>
                 <div id="quick-actions" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
             </div>
-            <div class="section">
-                <div class="section-title"><div class="section-icon"><i class="ti ti-list-check"></i></div>Today</div>
-                <div id="today-habits" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
-            </div>
-            <div class="section">
-                <div class="section-title"><div class="section-icon"><i class="ti ti-notebook"></i></div>Journaling</div>
-                <div id="journal-summary"></div>
-                <div id="journal-heatmap" style="margin-top:14px;"></div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:var(--gap);">
+                <div class="section" style="margin:0;">
+                    <div class="section-title"><div class="section-icon"><i class="ti ti-list-check"></i></div>Today</div>
+                    <div id="today-habits" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+                </div>
+                <div class="section" style="margin:0;">
+                    <div class="section-title"><div class="section-icon"><i class="ti ti-notebook"></i></div>Journaling</div>
+                    <div id="journal-summary"></div>
+                    <div id="journal-heatmap" style="margin-top:14px;"></div>
+                </div>
             </div>
         </div>
 
@@ -1390,7 +1396,8 @@
                 lastOuraSync: null,
                 books: [],
                 fasting: { activeStart: null, goalHours: 16, log: [] },
-                journal: []
+                journal: [],
+                perfectWeeks: []
             };
         }
 
@@ -3863,7 +3870,80 @@
             hm.innerHTML = `<div style="font-size:11px; color:var(--text-secondary); margin-bottom:6px;">Last 5 weeks (green = journaled)</div><div style="display:grid; grid-template-columns:repeat(7, 18px); gap:5px;">${cells}</div>`;
         }
 
+        // ----- Perfect Week (Mon–Sun) -----
+        function weekBounds() {
+            const now = new Date();
+            const diffToMon = (now.getDay() + 6) % 7;   // days since Monday
+            const start = new Date(now); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - diffToMon);
+            const end = new Date(start); end.setDate(end.getDate() + 6); end.setHours(23, 59, 59, 999);
+            return { start, end, id: start.toISOString().slice(0, 10) };
+        }
+        function perfectWeekStatus() {
+            const { start, end, id } = weekBounds();
+            const inWk = ds => { if (!ds) return false; const d = new Date(ds + 'T00:00:00'); return d >= start && d <= end; };
+            let strength = 0;
+            if (appData.currentWeek) strength += Object.values(appData.currentWeek.days || {}).filter(d => d && d.completed && inWk(d.completedDate)).length;
+            (appData.weekHistory || []).forEach(w => { strength += Object.values(w.days || {}).filter(d => d && d.completed && inWk(d.completedDate)).length; });
+            const cardio = (appData.cardio || []).filter(c => inWk(c.date)).length;
+            const fasts = ((appData.fasting && appData.fasting.log) || []).filter(l => inWk(l.date)).length;
+            const journal = (appData.journal || []).filter(inWk).length;
+            const readDays = new Set();
+            (appData.books || []).forEach(b => (b.log || []).forEach(l => { if (inWk(l.date)) readDays.add(l.date); }));
+            const sleepRows = (appData.ouraApiData || []).filter(o => inWk(o.date) && o.sleepScore > 0);
+            const avgScore = sleepRows.length ? sleepRows.reduce((s, o) => s + o.sleepScore, 0) / sleepRows.length : 0;
+            const durRows = (appData.ouraApiData || []).filter(o => inWk(o.date) && o.sleepDuration > 0);
+            const avgDur = durRows.length ? durRows.reduce((s, o) => s + o.sleepDuration, 0) / durRows.length : 0;
+            const goals = [
+                { label: 'Strength', icon: 'ti-barbell', cur: strength, target: 4 },
+                { label: 'Cardio', icon: 'ti-run', cur: cardio, target: 2 },
+                { label: 'Fasts', icon: 'ti-clock', cur: fasts, target: 5 },
+                { label: 'Journaled', icon: 'ti-notebook', cur: journal, target: 7 },
+                { label: 'Read', icon: 'ti-book', cur: readDays.size, target: 7 },
+                { label: 'Avg sleep score', icon: 'ti-moon', met: avgScore >= 80, display: avgScore ? avgScore.toFixed(0) : '—', goalTxt: '80+' },
+                { label: 'Avg sleep', icon: 'ti-bed', met: avgDur >= 7, display: avgDur ? avgDur.toFixed(1) + 'h' : '—', goalTxt: '7h+' }
+            ];
+            goals.forEach(g => {
+                if (g.met !== undefined) { g.progress = g.met ? 1 : (g.display === '—' ? 0 : 0.5); g.metFlag = g.met; }
+                else { g.progress = Math.min(1, g.cur / g.target); g.metFlag = g.cur >= g.target; }
+            });
+            const overall = goals.reduce((s, g) => s + g.progress, 0) / goals.length;
+            const metCount = goals.filter(g => g.metFlag).length;
+            return { goals, overall, metCount, id, perfect: metCount === goals.length };
+        }
+        function perfectRing(pct) {
+            const r = 52, c = 2 * Math.PI * r, off = c * (1 - pct);
+            const color = pct >= 1 ? '#10b981' : '#2563eb';
+            return `<svg width="130" height="130" viewBox="0 0 130 130">
+                <circle cx="65" cy="65" r="${r}" fill="none" stroke="#334155" stroke-width="12"/>
+                <circle cx="65" cy="65" r="${r}" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 65 65)"/>
+                <text x="65" y="60" text-anchor="middle" style="font-family:'Space Grotesk', sans-serif; font-size:28px; font-weight:700; fill:#f1f5f9;">${Math.round(pct * 100)}%</text>
+                <text x="65" y="80" text-anchor="middle" style="font-size:11px; fill:#94a3b8;">${pct >= 1 ? 'PERFECT!' : 'this week'}</text>
+            </svg>`;
+        }
+        function renderPerfectWeek() {
+            const el = document.getElementById('perfect-week'); if (!el) return;
+            const st = perfectWeekStatus();
+            if (st.perfect) { appData.perfectWeeks = appData.perfectWeeks || []; if (!appData.perfectWeeks.includes(st.id)) { appData.perfectWeeks.push(st.id); saveData(appData); } }
+            const total = (appData.perfectWeeks || []).length;
+            const goalsHtml = st.goals.map(g => {
+                const pct = Math.round(g.progress * 100);
+                const valTxt = g.display !== undefined ? `${g.display} / ${g.goalTxt}` : `${g.cur}/${g.target}`;
+                return `<div style="display:flex; align-items:center; gap:10px; margin-bottom:9px;">
+                    <i class="ti ${g.icon}" style="width:18px; text-align:center; color:${g.metFlag ? 'var(--success)' : 'var(--text-secondary)'};"></i>
+                    <div style="flex:1;">
+                        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;"><span style="color:var(--text-primary);">${g.label}</span><span style="color:${g.metFlag ? 'var(--success)' : 'var(--text-secondary)'};">${valTxt}${g.metFlag ? ' ✓' : ''}</span></div>
+                        <div style="background:var(--bg-card); height:6px; border-radius:3px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:${g.metFlag ? 'var(--success)' : 'var(--grad)'};"></div></div>
+                    </div>
+                </div>`;
+            }).join('');
+            el.innerHTML = `<div style="display:grid; grid-template-columns:150px 1fr; gap:20px; align-items:center;">
+                <div style="text-align:center;">${perfectRing(st.overall)}<div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${st.metCount}/7 goals${total ? `<br><span style="color:var(--success);">🏆 ${total} perfect week${total === 1 ? '' : 's'}</span>` : ''}</div></div>
+                <div>${goalsHtml}</div>
+            </div>`;
+        }
+
         function renderDashboard() {
+            renderPerfectWeek();
             renderQuickActions();
             renderTodayHabits();
             renderJournal();
@@ -3938,6 +4018,7 @@
             d.books       = d.books       || [];
             d.fasting     = d.fasting     || { activeStart: null, goalHours: 16, log: [] };
             d.journal     = d.journal     || [];
+            d.perfectWeeks = d.perfectWeeks || [];
         }
 
         function userDoc() {
