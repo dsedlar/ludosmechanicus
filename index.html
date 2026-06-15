@@ -688,7 +688,21 @@
         </div>
 
         <!-- DASHBOARD -->
-        <div id="dashboard" class="tab-content active"></div>
+        <div id="dashboard" class="tab-content active">
+            <div class="section">
+                <div class="section-title"><div class="section-icon"><i class="ti ti-bolt"></i></div>Quick Actions</div>
+                <div id="quick-actions" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+            </div>
+            <div class="section">
+                <div class="section-title"><div class="section-icon"><i class="ti ti-list-check"></i></div>Today</div>
+                <div id="today-habits" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+            </div>
+            <div class="section">
+                <div class="section-title"><div class="section-icon"><i class="ti ti-notebook"></i></div>Journaling</div>
+                <div id="journal-summary"></div>
+                <div id="journal-heatmap" style="margin-top:14px;"></div>
+            </div>
+        </div>
 
         <!-- STRENGTH TAB -->
         <div id="strength" class="tab-content">
@@ -1375,7 +1389,8 @@
                 ouraApiData: [],
                 lastOuraSync: null,
                 books: [],
-                fasting: { activeStart: null, goalHours: 16, log: [] }
+                fasting: { activeStart: null, goalHours: 16, log: [] },
+                journal: []
             };
         }
 
@@ -1422,6 +1437,7 @@
                 }
                 if (tabName === 'reading') renderReading();
                 if (tabName === 'fasting') renderFasting();
+                if (tabName === 'dashboard') renderDashboard();
             }, 100);
         }
 
@@ -3722,7 +3738,7 @@
 
         // ============ FASTING ============
         function ensureFasting() { appData.fasting = appData.fasting || { activeStart: null, goalHours: 16, log: [] }; return appData.fasting; }
-        function startFast() { const f = ensureFasting(); f.activeStart = new Date().toISOString(); saveData(appData); renderFasting(); }
+        function startFast() { const f = ensureFasting(); f.activeStart = new Date().toISOString(); saveData(appData); renderFasting(); renderDashboard(); }
         function endFast() {
             const f = ensureFasting(); if (!f.activeStart) return;
             const start = new Date(f.activeStart), end = new Date();
@@ -3730,9 +3746,9 @@
             f.log = f.log || [];
             f.log.unshift({ date: start.toISOString().slice(0, 10), start: f.activeStart, end: end.toISOString(), hours, type: hours >= 24 ? 'Prolonged' : 'Intermittent', goal: f.goalHours });
             f.activeStart = null;
-            saveData(appData); renderFasting();
+            saveData(appData); renderFasting(); renderDashboard();
         }
-        function cancelFast() { const f = ensureFasting(); f.activeStart = null; saveData(appData); renderFasting(); }
+        function cancelFast() { const f = ensureFasting(); f.activeStart = null; saveData(appData); renderFasting(); renderDashboard(); }
         function setFastGoal(v) { const f = ensureFasting(); f.goalHours = parseFloat(v) || 16; saveData(appData); renderFasting(); }
         function deleteFast(i) { const f = ensureFasting(); f.log.splice(i, 1); saveData(appData); renderFasting(); }
         function fastingStreak() { return dayStreak((ensureFasting().log || []).map(l => l.date)); }
@@ -3777,6 +3793,82 @@
             updateStats();
         }
 
+        // ============ DASHBOARD QUICK ACTIONS + JOURNALING ============
+        function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+        function toggleJournalToday() {
+            appData.journal = appData.journal || [];
+            const t = todayStr();
+            const i = appData.journal.indexOf(t);
+            if (i >= 0) appData.journal.splice(i, 1); else appData.journal.push(t);
+            saveData(appData);
+            renderDashboard();
+            updateStats();
+        }
+        function journalStreak() { return dayStreak(appData.journal || []); }
+
+        function renderQuickActions() {
+            const qa = document.getElementById('quick-actions');
+            if (!qa) return;
+            const journaled = (appData.journal || []).includes(todayStr());
+            const f = ensureFasting();
+            qa.innerHTML = `
+                <button class="${journaled ? 'btn-primary' : 'btn-secondary'}" onclick="toggleJournalToday()"><i class="ti ${journaled ? 'ti-check' : 'ti-notebook'}" style="margin-right:6px;"></i>${journaled ? 'Journaled ✓' : 'Journal today'}</button>
+                <button class="btn-secondary" onclick="${f.activeStart ? 'endFast()' : 'startFast()'}"><i class="ti ${f.activeStart ? 'ti-player-stop' : 'ti-player-play'}" style="margin-right:6px;"></i>${f.activeStart ? 'End fast' : 'Start fast'}</button>
+                <button class="btn-secondary" onclick="switchTab('cardio')"><i class="ti ti-run" style="margin-right:6px;"></i>Log cardio</button>
+                <button class="btn-secondary" onclick="switchTab('golf')"><i class="ti ti-golf" style="margin-right:6px;"></i>Log round</button>
+                <button class="btn-secondary" onclick="switchTab('oura')"><i class="ti ti-scale" style="margin-right:6px;"></i>Log weight</button>
+                <button class="btn-secondary" onclick="switchTab('reading')"><i class="ti ti-book" style="margin-right:6px;"></i>Reading</button>`;
+        }
+
+        function renderTodayHabits() {
+            const el = document.getElementById('today-habits');
+            if (!el) return;
+            const t = todayStr();
+            const f = ensureFasting();
+            const items = [
+                { label: 'Journal', done: (appData.journal || []).includes(t) },
+                { label: 'Read', done: (appData.books || []).some(b => (b.log || []).some(l => l.date === t)) },
+                { label: 'Fast', done: !!f.activeStart || (f.log || []).some(l => l.date === t) },
+                { label: 'Strength', done: !!(appData.currentWeek && Object.values(appData.currentWeek.days || {}).some(d => d && d.completed && d.completedDate === t)) },
+                { label: 'Cardio', done: (appData.cardio || []).some(c => c.date === t) }
+            ];
+            el.innerHTML = items.map(it =>
+                `<div style="display:flex; align-items:center; gap:8px; background:var(--bg-hover); padding:10px 14px; border-radius:var(--radius); ${it.done ? 'border:1px solid var(--success);' : 'border:1px solid var(--border);'}">
+                    <i class="ti ${it.done ? 'ti-circle-check' : 'ti-circle'}" style="color:${it.done ? 'var(--success)' : 'var(--text-secondary)'}; font-size:18px;"></i>
+                    <span style="color:var(--text-primary); font-size:14px;">${it.label}</span>
+                </div>`).join('');
+        }
+
+        function renderJournal() {
+            const set = new Set(appData.journal || []);
+            const streak = journalStreak();
+            let week = 0;
+            for (let i = 0; i < 7; i++) { const d = new Date(); d.setDate(d.getDate() - i); if (set.has(d.toISOString().slice(0, 10))) week++; }
+            const journaledToday = set.has(todayStr());
+            const sum = document.getElementById('journal-summary');
+            if (sum) sum.innerHTML = `<div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+                <button class="${journaledToday ? 'btn-primary' : 'btn-secondary'}" onclick="toggleJournalToday()"><i class="ti ${journaledToday ? 'ti-check' : 'ti-notebook'}" style="margin-right:6px;"></i>${journaledToday ? 'Journaled today ✓' : 'Mark journaled today'}</button>
+                <div style="font-size:14px; color:var(--text-secondary);">Streak: <strong style="color:var(--success); font-family:'Space Grotesk', sans-serif;">${streak}</strong> day${streak === 1 ? '' : 's'} · <strong style="color:var(--text-primary);">${week}/7</strong> this week</div>
+            </div>`;
+            const hm = document.getElementById('journal-heatmap');
+            if (!hm) return;
+            let cells = '';
+            for (let i = 34; i >= 0; i--) {
+                const d = new Date(); d.setDate(d.getDate() - i);
+                const ds = d.toISOString().slice(0, 10);
+                const on = set.has(ds);
+                cells += `<div title="${ds}" style="width:18px; height:18px; border-radius:4px; background:${on ? 'var(--success)' : 'var(--bg-hover)'}; border:1px solid var(--border);"></div>`;
+            }
+            hm.innerHTML = `<div style="font-size:11px; color:var(--text-secondary); margin-bottom:6px;">Last 5 weeks (green = journaled)</div><div style="display:grid; grid-template-columns:repeat(7, 18px); gap:5px;">${cells}</div>`;
+        }
+
+        function renderDashboard() {
+            renderQuickActions();
+            renderTodayHabits();
+            renderJournal();
+        }
+
         // ============ INITIALIZATION ============
         function init() {
             // Initialize current week if needed
@@ -3803,6 +3895,7 @@
             renderTrainingLog();
             updateStats();
             if (!appData.prBests) appData.prBests = snapshotPRs();  // baseline; no toast on first load
+            renderDashboard();
             selectDay(1);
         }
 
@@ -3844,6 +3937,7 @@
             d.ouraApiData = d.ouraApiData || [];
             d.books       = d.books       || [];
             d.fasting     = d.fasting     || { activeStart: null, goalHours: 16, log: [] };
+            d.journal     = d.journal     || [];
         }
 
         function userDoc() {
