@@ -587,6 +587,16 @@
                 <div class="stat-value"><span id="visceral-fat">—</span><span class="trend-arrow" id="visceral-arrow"></span></div>
                 <div class="stat-change" id="visceral-change">Target <10</div>
             </div>
+            <div class="stat-card" onclick="switchTab('reading')">
+                <div class="stat-label">Reading Streak</div>
+                <div class="stat-value"><span id="reading-streak">0</span></div>
+                <div class="stat-change" id="reading-change">days</div>
+            </div>
+            <div class="stat-card" onclick="switchTab('fasting')">
+                <div class="stat-label">Fasting</div>
+                <div class="stat-value"><span id="fasting-stat">—</span></div>
+                <div class="stat-change" id="fasting-change">Tap to start</div>
+            </div>
             <div class="stat-card" onclick="switchTab('prs')">
                 <div class="stat-label">Personal Records</div>
                 <div class="stat-value" id="pr-count" style="color:var(--accent);">0</div>
@@ -672,6 +682,8 @@
             <button class="tab-btn" onclick="switchTab('golf')">Golf</button>
             <button class="tab-btn" onclick="switchTab('oura')">Oura</button>
             <button class="tab-btn" onclick="switchTab('prs')">PRs</button>
+            <button class="tab-btn" onclick="switchTab('reading')">Reading</button>
+            <button class="tab-btn" onclick="switchTab('fasting')">Fasting</button>
             <button class="tab-btn" onclick="switchTab('summary')">Weekly Summary</button>
         </div>
 
@@ -1243,6 +1255,41 @@
             </div>
         </div>
 
+        <!-- READING -->
+        <div id="reading" class="tab-content">
+            <div class="section">
+                <div class="section-title"><div class="section-icon"><i class="ti ti-book"></i></div>Reading</div>
+                <div class="info-box">Search a book to add it, then update the page you're on. Tracks % done, pages left, pace, projected finish, and your daily reading streak.</div>
+                <div style="position:relative; max-width:480px;">
+                    <input type="text" id="book-search" autocomplete="off" placeholder="Search a book title…" oninput="onBookSearchInput()" onblur="setTimeout(hideBookDropdown,150)">
+                    <div id="book-results" class="course-dd" style="display:none;" onmousedown="event.preventDefault()"></div>
+                </div>
+                <div id="book-search-status" style="font-size:11px; color:var(--text-secondary); margin-top:4px; min-height:14px;"></div>
+                <div id="reading-current" style="margin-top:16px;"></div>
+            </div>
+            <div class="section">
+                <div class="section-title"><div class="section-icon"><i class="ti ti-checks"></i></div>Finished Books</div>
+                <div id="reading-finished"></div>
+            </div>
+        </div>
+
+        <!-- FASTING -->
+        <div id="fasting" class="tab-content">
+            <div class="section">
+                <div class="section-title"><div class="section-icon"><i class="ti ti-clock"></i></div>Fasting</div>
+                <div class="info-box">Tap Start when you begin your fast and End when you break it — the app logs the length and labels it (Intermittent &lt;24h / Prolonged ≥24h).</div>
+                <div id="fasting-active"></div>
+                <div style="margin-top:16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <label style="font-size:13px; color:var(--text-secondary);">Goal (hours):</label>
+                    <input type="number" id="fast-goal" min="1" max="72" style="width:90px;" onchange="setFastGoal(this.value)">
+                </div>
+            </div>
+            <div class="section">
+                <div class="section-title"><div class="section-icon"><i class="ti ti-history"></i></div>Fasting History</div>
+                <table class="data-table"><thead><tr><th>Date</th><th>Length</th><th>Type</th><th>Goal</th><th>Action</th></tr></thead><tbody id="fasting-history"></tbody></table>
+            </div>
+        </div>
+
         <!-- PERSONAL RECORDS -->
         <div id="prs" class="tab-content">
             <div class="section">
@@ -1363,7 +1410,9 @@
                 visceral: [],
                 ouraToken: null,
                 ouraApiData: [],
-                lastOuraSync: null
+                lastOuraSync: null,
+                books: [],
+                fasting: { activeStart: null, goalHours: 16, log: [] }
             };
         }
 
@@ -1408,6 +1457,8 @@
                 if (tabName === 'prs') {
                     renderPRs();
                 }
+                if (tabName === 'reading') renderReading();
+                if (tabName === 'fasting') renderFasting();
             }, 100);
         }
 
@@ -3164,6 +3215,34 @@
                 trendArrow('visceral-arrow', null);
             }
 
+            // ----- Reading streak -----
+            const rs = document.getElementById('reading-streak');
+            if (rs) {
+                const streak = readingStreak();
+                rs.textContent = streak;
+                const rc = document.getElementById('reading-change');
+                const curBook = (appData.books || []).find(b => b.status !== 'finished');
+                if (rc) {
+                    rc.textContent = curBook ? curBook.title.slice(0, 22) : (streak > 0 ? 'day streak 🔥' : 'Start a book');
+                    rc.style.color = streak > 0 ? 'var(--success)' : 'var(--text-secondary)';
+                }
+            }
+
+            // ----- Fasting -----
+            const fs = document.getElementById('fasting-stat');
+            if (fs) {
+                const f = appData.fasting;
+                const fc = document.getElementById('fasting-change');
+                if (f && f.activeStart) {
+                    fs.textContent = ((new Date() - new Date(f.activeStart)) / 3600000).toFixed(1) + 'h';
+                    if (fc) { fc.textContent = 'Fasting now'; fc.style.color = 'var(--accent)'; }
+                } else {
+                    const last = f && f.log && f.log[0];
+                    fs.textContent = last ? last.hours + 'h' : '—';
+                    if (fc) { fc.textContent = last ? 'Last fast' : 'Tap to start'; fc.style.color = 'var(--text-secondary)'; }
+                }
+            }
+
             const prc = document.getElementById('pr-count');
             if (prc) prc.textContent = countPRs();
         }
@@ -3548,6 +3627,193 @@
             return out;
         }
 
+        // ============ READING ============
+        let bookSearchTimer = null, bookResults = [];
+
+        // Consecutive days ending today/yesterday present in the date set
+        function dayStreak(dates) {
+            const set = new Set(dates);
+            if (!set.size) return 0;
+            const iso = x => x.toISOString().slice(0, 10);
+            let d = new Date();
+            if (!set.has(iso(d))) { d.setDate(d.getDate() - 1); if (!set.has(iso(d))) return 0; }
+            let s = 0;
+            while (set.has(iso(d))) { s++; d.setDate(d.getDate() - 1); }
+            return s;
+        }
+        function setBookStatus(m) { const e = document.getElementById('book-search-status'); if (e) e.textContent = m; }
+        function hideBookDropdown() { const d = document.getElementById('book-results'); if (d) d.style.display = 'none'; }
+
+        function onBookSearchInput() {
+            const t = document.getElementById('book-search').value.trim();
+            clearTimeout(bookSearchTimer);
+            if (t.length < 3) { hideBookDropdown(); setBookStatus(''); return; }
+            bookSearchTimer = setTimeout(() => searchBooks(t), 500);
+        }
+        async function searchBooks(q) {
+            setBookStatus('Searching…');
+            try {
+                const r = await fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=6&fields=title,author_name,number_of_pages_median,cover_i,first_publish_year`);
+                const d = await r.json();
+                bookResults = (d.docs || []).map(x => ({
+                    title: x.title || 'Untitled',
+                    author: (x.author_name || [])[0] || 'Unknown',
+                    totalPages: x.number_of_pages_median || 0,
+                    cover: x.cover_i ? `https://covers.openlibrary.org/b/id/${x.cover_i}-M.jpg` : '',
+                    year: x.first_publish_year || ''
+                }));
+                renderBookResults();
+                setBookStatus(bookResults.length ? '' : 'No books found.');
+            } catch (e) { console.error('Book search failed:', e); setBookStatus('Search failed — try again.'); }
+        }
+        function renderBookResults() {
+            const dd = document.getElementById('book-results');
+            if (!bookResults.length) { dd.style.display = 'none'; return; }
+            dd.innerHTML = bookResults.map((b, i) =>
+                `<div class="course-dd-item" onclick="addBook(${i})" style="display:flex; gap:10px; align-items:center;">${b.cover ? `<img src="${b.cover}" style="width:32px; height:48px; object-fit:cover; border-radius:3px; flex-shrink:0;">` : ''}<div><div class="course-dd-name">${escHtml(b.title)}</div><div class="course-dd-loc">${escHtml(b.author)}${b.totalPages ? ` · ${b.totalPages} pages` : ''}${b.year ? ` · ${b.year}` : ''}</div></div></div>`
+            ).join('');
+            dd.style.display = 'block';
+        }
+        function addBook(i) {
+            const b = bookResults[i]; if (!b) return;
+            appData.books = appData.books || [];
+            appData.books.unshift({
+                id: Date.now().toString(), title: b.title, author: b.author,
+                totalPages: b.totalPages || 0, cover: b.cover,
+                startDate: new Date().toISOString().slice(0, 10),
+                currentPage: 0, status: 'reading', finishDate: null, log: []
+            });
+            document.getElementById('book-search').value = '';
+            hideBookDropdown(); setBookStatus('');
+            saveData(appData); renderReading();
+        }
+
+        function readingStreak() {
+            const dates = [];
+            (appData.books || []).forEach(b => (b.log || []).forEach(l => dates.push(l.date)));
+            return dayStreak(dates);
+        }
+        function updateBookPage(id, val) {
+            const b = (appData.books || []).find(x => x.id === id); if (!b) return;
+            let p = parseInt(val, 10) || 0; if (p < 0) p = 0; if (b.totalPages && p > b.totalPages) p = b.totalPages;
+            b.currentPage = p;
+            const today = new Date().toISOString().slice(0, 10);
+            b.log = b.log || [];
+            const tl = b.log.find(l => l.date === today);
+            if (tl) tl.page = p; else b.log.push({ date: today, page: p });
+            if (b.totalPages && p >= b.totalPages) { b.status = 'finished'; b.finishDate = today; }
+            saveData(appData); renderReading();
+        }
+        function updateBookTotal(id, val) {
+            const b = (appData.books || []).find(x => x.id === id); if (!b) return;
+            b.totalPages = parseInt(val, 10) || 0; saveData(appData); renderReading();
+        }
+        function finishBook(id) {
+            const b = (appData.books || []).find(x => x.id === id); if (!b) return;
+            b.status = 'finished'; b.finishDate = new Date().toISOString().slice(0, 10);
+            if (b.totalPages) b.currentPage = b.totalPages;
+            saveData(appData); renderReading();
+        }
+        function reopenBook(id) { const b = (appData.books || []).find(x => x.id === id); if (!b) return; b.status = 'reading'; b.finishDate = null; saveData(appData); renderReading(); }
+        function deleteBook(id) { if (!confirm('Remove this book?')) return; appData.books = (appData.books || []).filter(x => x.id !== id); saveData(appData); renderReading(); }
+
+        function renderBookCard(b) {
+            const total = b.totalPages || 0;
+            const pct = total ? Math.min(100, Math.round(b.currentPage / total * 100)) : 0;
+            const left = total ? Math.max(0, total - b.currentPage) : null;
+            const daysIn = b.startDate ? Math.max(1, Math.round((new Date() - new Date(b.startDate)) / 86400000)) : 1;
+            const pace = b.currentPage > 0 ? b.currentPage / daysIn : 0;
+            let proj = '';
+            if (left && pace > 0) { const dl = Math.ceil(left / pace); const pd = new Date(); pd.setDate(pd.getDate() + dl); proj = ` · finish ~${pd.toISOString().slice(0, 10)}`; }
+            return `<div style="background:var(--bg-hover); border-radius:var(--radius); padding:16px; margin-bottom:12px; display:flex; gap:14px;">
+                ${b.cover ? `<img src="${b.cover}" style="width:64px; height:96px; object-fit:cover; border-radius:6px; flex-shrink:0;">` : ''}
+                <div style="flex:1;">
+                    <div style="font-weight:600; color:var(--text-primary);">${escHtml(b.title)}</div>
+                    <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">${escHtml(b.author)}</div>
+                    <div style="background:var(--bg-card); border-radius:6px; height:8px; overflow:hidden; margin-bottom:6px;"><div style="height:100%; width:${pct}%; background:var(--grad);"></div></div>
+                    <div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">${total ? `Page ${b.currentPage} of ${total} · ${pct}%${left != null ? ` · ${left} left` : ''}${pace > 0 ? ` · ${pace.toFixed(0)}/day${proj}` : ''}` : 'Set total pages →'}</div>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <label style="font-size:12px; color:var(--text-secondary);">On page</label>
+                        <input type="number" value="${b.currentPage}" style="width:90px;" onchange="updateBookPage('${b.id}', this.value)">
+                        ${!total ? `<label style="font-size:12px; color:var(--text-secondary);">of</label><input type="number" placeholder="total" style="width:90px;" onchange="updateBookTotal('${b.id}', this.value)">` : ''}
+                        <button class="btn-secondary" style="font-size:12px; padding:6px 10px;" onclick="finishBook('${b.id}')">Mark finished</button>
+                        <button class="delete-btn" onclick="deleteBook('${b.id}')">Remove</button>
+                    </div>
+                </div>
+            </div>`;
+        }
+        function renderReading() {
+            const cur = (appData.books || []).filter(b => b.status !== 'finished');
+            const fin = (appData.books || []).filter(b => b.status === 'finished');
+            const curEl = document.getElementById('reading-current');
+            if (curEl) curEl.innerHTML = cur.length ? cur.map(renderBookCard).join('') : '<div style="color:var(--text-secondary); font-size:14px;">No book in progress — search above to add one.</div>';
+            const finEl = document.getElementById('reading-finished');
+            if (finEl) {
+                finEl.innerHTML = fin.length ? fin.map(b => {
+                    const days = (b.startDate && b.finishDate) ? Math.max(1, Math.round((new Date(b.finishDate) - new Date(b.startDate)) / 86400000)) : null;
+                    return `<div style="display:flex; gap:12px; align-items:center; padding:10px 0; border-bottom:1px solid var(--border);">${b.cover ? `<img src="${b.cover}" style="width:36px; height:54px; object-fit:cover; border-radius:4px;">` : ''}<div style="flex:1;"><div style="font-weight:600;">${escHtml(b.title)}</div><div style="font-size:12px; color:var(--text-secondary);">${escHtml(b.author)}${b.totalPages ? ` · ${b.totalPages} pages` : ''}${days ? ` · finished in ${days} day${days === 1 ? '' : 's'}` : ''}</div></div><button class="btn-secondary" style="font-size:12px; padding:6px 10px;" onclick="reopenBook('${b.id}')">Reopen</button><button class="delete-btn" onclick="deleteBook('${b.id}')">Delete</button></div>`;
+                }).join('') : '<div style="color:var(--text-secondary); font-size:14px;">Finished books will show here.</div>';
+            }
+            updateStats();
+        }
+
+        // ============ FASTING ============
+        function ensureFasting() { appData.fasting = appData.fasting || { activeStart: null, goalHours: 16, log: [] }; return appData.fasting; }
+        function startFast() { const f = ensureFasting(); f.activeStart = new Date().toISOString(); saveData(appData); renderFasting(); }
+        function endFast() {
+            const f = ensureFasting(); if (!f.activeStart) return;
+            const start = new Date(f.activeStart), end = new Date();
+            const hours = Math.round((end - start) / 3600000 * 10) / 10;
+            f.log = f.log || [];
+            f.log.unshift({ date: start.toISOString().slice(0, 10), start: f.activeStart, end: end.toISOString(), hours, type: hours >= 24 ? 'Prolonged' : 'Intermittent', goal: f.goalHours });
+            f.activeStart = null;
+            saveData(appData); renderFasting();
+        }
+        function cancelFast() { const f = ensureFasting(); f.activeStart = null; saveData(appData); renderFasting(); }
+        function setFastGoal(v) { const f = ensureFasting(); f.goalHours = parseFloat(v) || 16; saveData(appData); renderFasting(); }
+        function deleteFast(i) { const f = ensureFasting(); f.log.splice(i, 1); saveData(appData); renderFasting(); }
+        function fastingStreak() { return dayStreak((ensureFasting().log || []).map(l => l.date)); }
+
+        function updateFastElapsed() {
+            const f = ensureFasting(); if (!f.activeStart) return;
+            const el = document.getElementById('fasting-elapsed'); if (!el) return;
+            const ms = new Date() - new Date(f.activeStart);
+            const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000), s = Math.floor((ms % 60000) / 1000);
+            el.textContent = `${h}h ${m}m ${s}s`;
+            const bar = document.getElementById('fasting-bar'); if (bar) bar.style.width = Math.min(100, (ms / 3600000) / f.goalHours * 100) + '%';
+        }
+        function renderFasting() {
+            const f = ensureFasting();
+            const goalEl = document.getElementById('fast-goal'); if (goalEl) goalEl.value = f.goalHours;
+            const active = document.getElementById('fasting-active');
+            if (window.fastingInterval) { clearInterval(window.fastingInterval); window.fastingInterval = null; }
+            if (active) {
+                if (f.activeStart) {
+                    active.innerHTML = `<div style="background:var(--bg-hover); border-left:3px solid var(--accent); border-radius:0 10px 10px 0; padding:16px;">
+                        <div style="font-size:12px; color:var(--text-secondary);">Fasting since ${new Date(f.activeStart).toLocaleString()}</div>
+                        <div style="font-family:'Space Grotesk', sans-serif; font-size:30px; font-weight:700; color:var(--primary); margin:6px 0;" id="fasting-elapsed">—</div>
+                        <div style="background:var(--bg-card); border-radius:6px; height:8px; overflow:hidden; margin-bottom:12px;"><div id="fasting-bar" style="height:100%; width:0%; background:var(--grad);"></div></div>
+                        <button class="btn-primary" onclick="endFast()">End fast</button>
+                        <button class="btn-secondary" onclick="cancelFast()" style="margin-left:8px;">Cancel</button>
+                    </div>`;
+                    updateFastElapsed();
+                    window.fastingInterval = setInterval(updateFastElapsed, 1000);
+                } else {
+                    const last = (f.log || [])[0], streak = fastingStreak();
+                    active.innerHTML = `<div style="text-align:center; padding:10px 0;">
+                        <button class="btn-primary" style="font-size:16px; padding:14px 28px;" onclick="startFast()"><i class="ti ti-player-play" style="margin-right:8px;"></i>Start fast</button>
+                        ${last ? `<div style="margin-top:12px; font-size:13px; color:var(--text-secondary);">Last fast: <strong style="color:var(--text-primary);">${last.hours}h</strong> (${last.type}) on ${last.date}</div>` : ''}
+                        <div style="margin-top:8px; font-size:13px; color:var(--text-secondary);">Streak: <strong style="color:var(--success);">${streak}</strong> day${streak === 1 ? '' : 's'}</div>
+                    </div>`;
+                }
+            }
+            const hist = document.getElementById('fasting-history');
+            if (hist) hist.innerHTML = (f.log || []).slice(0, 30).map((l, i) =>
+                `<tr><td>${l.date}</td><td class="data-value">${l.hours}h</td><td>${l.type}</td><td>${l.hours >= (l.goal || f.goalHours) ? '<span style="color:var(--success);">✓</span>' : '—'}</td><td><button class="delete-btn" onclick="deleteFast(${i})">Delete</button></td></tr>`
+            ).join('');
+            updateStats();
+        }
+
         // ============ INITIALIZATION ============
         function init() {
             // Initialize current week if needed
@@ -3613,6 +3879,8 @@
             d.oura        = d.oura        || [];
             d.visceral    = d.visceral    || [];
             d.ouraApiData = d.ouraApiData || [];
+            d.books       = d.books       || [];
+            d.fasting     = d.fasting     || { activeStart: null, goalHours: 16, log: [] };
         }
 
         function userDoc() {
