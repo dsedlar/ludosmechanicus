@@ -1019,9 +1019,19 @@
                         </div>
                         <div class="form-group">
                             <label>Course Name</label>
-                            <input type="text" id="grint-course" list="course-list" autocomplete="off" placeholder="Type 3+ letters to search courses" oninput="onCourseInput()" onchange="onCourseSelected()">
-                            <datalist id="course-list"></datalist>
+                            <div style="position:relative;">
+                                <input type="text" id="grint-course" autocomplete="off" placeholder="Type 3+ letters to search courses" oninput="onCourseInput()" onfocus="onCourseInput()" onblur="setTimeout(hideCourseDropdown, 150)">
+                                <div id="course-results" class="course-dd" style="display:none;" onmousedown="event.preventDefault()"></div>
+                            </div>
                             <div id="course-search-status" style="font-size:11px; color:var(--text-secondary); margin-top:4px; min-height:14px;"></div>
+                            <style>
+                                .course-dd { position:absolute; left:0; right:0; top:100%; z-index:50; background:var(--bg-card); border:1px solid var(--border); border-radius:0 0 10px 10px; max-height:240px; overflow-y:auto; box-shadow:0 10px 24px rgba(0,0,0,.45); }
+                                .course-dd-item { padding:10px 12px; cursor:pointer; border-bottom:1px solid var(--border); }
+                                .course-dd-item:last-child { border-bottom:none; }
+                                .course-dd-item:hover { background:var(--bg-hover); }
+                                .course-dd-name { color:var(--text-primary); font-weight:500; }
+                                .course-dd-loc { color:var(--text-secondary); font-size:12px; margin-top:2px; }
+                            </style>
                         </div>
                         <div class="form-group">
                             <label>Course Location</label>
@@ -2013,10 +2023,59 @@
             if (el) el.textContent = msg;
         }
 
+        let courseDropdownItems = [];
+        function escHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        // Your own courses whose name contains the typed text
+        function ownCourseMatches(text) {
+            const t = text.toLowerCase();
+            const own = [...new Set((appData.golf || []).map(g => (g.course || '').trim()).filter(Boolean).filter(n => n.toLowerCase() !== 'simulator'))];
+            return own.filter(n => !t || n.toLowerCase().includes(t)).map(n => {
+                const m = (appData.golf || []).find(g => (g.course || '').trim() === n && g.location);
+                return { name: n, location: m ? m.location : '' };
+            });
+        }
+
+        // Render the tappable suggestion list (own matches + live OSM results)
+        function renderCourseDropdown() {
+            const dd = document.getElementById('course-results');
+            if (!dd) return;
+            const text = document.getElementById('grint-course').value.trim();
+            const seen = new Set();
+            courseDropdownItems = [];
+            [...ownCourseMatches(text), ...courseSearchResults].forEach(c => {
+                const k = c.name.toLowerCase();
+                if (seen.has(k)) return;
+                seen.add(k);
+                courseDropdownItems.push(c);
+            });
+            if (!courseDropdownItems.length) { dd.style.display = 'none'; dd.innerHTML = ''; return; }
+            dd.innerHTML = courseDropdownItems.slice(0, 12).map((c, i) =>
+                `<div class="course-dd-item" onclick="pickCourseByIndex(${i})"><div class="course-dd-name">${escHtml(c.name)}</div>${c.location ? `<div class="course-dd-loc">${escHtml(c.location)}</div>` : ''}</div>`
+            ).join('');
+            dd.style.display = 'block';
+        }
+
+        function pickCourseByIndex(i) {
+            const c = courseDropdownItems[i];
+            if (!c) return;
+            document.getElementById('grint-course').value = c.name;
+            const loc = document.getElementById('grint-location');
+            if (c.location && !(loc.value && loc.value.trim())) loc.value = c.location;
+            hideCourseDropdown();
+            setCourseStatus('');
+        }
+
+        function hideCourseDropdown() {
+            const dd = document.getElementById('course-results');
+            if (dd) dd.style.display = 'none';
+        }
+
         // Debounced trigger as the user types (respects OSM ~1 req/sec via the delay + cache)
         function onCourseInput() {
             const text = document.getElementById('grint-course').value.trim();
             clearTimeout(courseSearchTimer);
+            renderCourseDropdown();                 // show own matches immediately
             if (text.length < 3) { setCourseStatus(''); return; }
             courseSearchTimer = setTimeout(() => searchCourses(text), 650);
         }
@@ -2053,8 +2112,8 @@
         function applyCourseResults(courses) {
             courseSearchResults = courses;
             courses.forEach(c => { courseSearchLocations[c.name.toLowerCase()] = c.location; });
-            refreshCourseList();
-            setCourseStatus(courses.length ? `${courses.length} course${courses.length === 1 ? '' : 's'} found — pick from the list` : 'No courses found — type it in manually');
+            renderCourseDropdown();
+            setCourseStatus(courses.length ? `${courses.length} course${courses.length === 1 ? '' : 's'} found — tap one below` : 'No courses found — type it in manually');
         }
 
         // When a course is chosen, auto-fill its location (if blank): own data first, then search results
