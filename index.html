@@ -900,6 +900,10 @@
                     <div class="section-icon"><i class="ti ti-table"></i></div>
                     Auto-Synced Oura Data
                 </div>
+                <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+                    <button class="btn-secondary" style="font-size:13px; padding:8px 14px;" onclick="cleanOuraNoSleep()"><i class="ti ti-trash" style="margin-right:6px;"></i>Remove rows with no sleep score</button>
+                </div>
+                <div id="oura-clean-message" style="margin-bottom:12px;"></div>
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -1638,6 +1642,25 @@
             document.getElementById('oura-hrv').value = '';
             document.getElementById('oura-readiness').value = '';
             document.getElementById('oura-activity').value = '';
+        }
+
+        // Remove Oura rows that have no sleep score (e.g. from a malfunctioning ring),
+        // but keep any row that holds body-composition data (weight / body fat / visceral).
+        function cleanOuraNoSleep() {
+            const data = appData.ouraApiData || [];
+            const hasBody = o => (o.weight > 0 || o.bodyFat > 0 || o.visceral > 0);
+            const toRemove = data.filter(o => !(o.sleepScore > 0) && !hasBody(o));
+            const msg = document.getElementById('oura-clean-message');
+            if (toRemove.length === 0) {
+                if (msg) { msg.className = 'info-box'; msg.textContent = 'Nothing to remove — every row has a sleep score (or holds body-composition data).'; }
+                return;
+            }
+            if (!confirm(`Remove ${toRemove.length} Oura row${toRemove.length === 1 ? '' : 's'} with no sleep score?\n\nRows that hold weight / body-fat / visceral data are kept.`)) return;
+            appData.ouraApiData = data.filter(o => (o.sleepScore > 0) || hasBody(o));
+            saveData(appData);
+            renderOuraApiTable();
+            updateStats();
+            if (msg) { msg.className = 'success-message'; msg.textContent = `✓ Removed ${toRemove.length} row${toRemove.length === 1 ? '' : 's'} with no sleep score.`; }
         }
 
         function renderOuraApiTable() {
