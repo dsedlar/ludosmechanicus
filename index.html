@@ -547,6 +547,21 @@
         </div>
 
         <div class="quick-stats">
+            <div class="stat-card" onclick="openSegment('weight')">
+                <div class="stat-label">Weight</div>
+                <div class="stat-value"><span id="current-weight">—</span><span class="trend-arrow" id="weight-arrow"></span></div>
+                <div class="stat-change" id="weight-change">Goal: 225 lb</div>
+            </div>
+            <div class="stat-card" onclick="openSegment('visceral')">
+                <div class="stat-label">Visceral Fat</div>
+                <div class="stat-value"><span id="visceral-fat">—</span><span class="trend-arrow" id="visceral-arrow"></span></div>
+                <div class="stat-change" id="visceral-change">Target <10</div>
+            </div>
+            <div class="stat-card" onclick="openSegment('sleep')">
+                <div class="stat-label">Sleep Score</div>
+                <div class="stat-value"><span id="sleep-score">—</span><span class="trend-arrow" id="sleep-arrow"></span></div>
+                <div class="stat-change" id="sleep-change">Oura</div>
+            </div>
             <div class="stat-card" onclick="openSegment('strength')">
                 <div class="stat-label">Strength Days</div>
                 <div class="stat-value"><span id="strength-days">0/4</span><span class="trend-arrow" id="strength-arrow"></span></div>
@@ -557,36 +572,6 @@
                 <div class="stat-value"><span id="cardio-sessions">0</span><span class="trend-arrow" id="cardio-arrow"></span></div>
                 <div class="stat-change" id="cardio-change">This week</div>
             </div>
-            <div class="stat-card" onclick="openSegment('golfRounds')">
-                <div class="stat-label">Golf Rounds</div>
-                <div class="stat-value"><span id="total-golf">0</span><span class="trend-arrow" id="golf-rounds-arrow"></span></div>
-                <div class="stat-change" id="rounds-change">All time</div>
-            </div>
-            <div class="stat-card" onclick="openSegment('handicap')">
-                <div class="stat-label">Handicap</div>
-                <div class="stat-value"><span id="current-handicap">—</span><span class="trend-arrow" id="handicap-arrow"></span></div>
-                <div class="stat-change" id="handicap-trend">HCP Index</div>
-            </div>
-            <div class="stat-card" onclick="openSegment('avgScore')">
-                <div class="stat-label">Avg Score</div>
-                <div class="stat-value"><span id="avg-golf-score">—</span><span class="trend-arrow" id="avg-score-arrow"></span></div>
-                <div class="stat-change" id="golf-trend">All time</div>
-            </div>
-            <div class="stat-card" onclick="openSegment('weight')">
-                <div class="stat-label">Weight</div>
-                <div class="stat-value"><span id="current-weight">—</span><span class="trend-arrow" id="weight-arrow"></span></div>
-                <div class="stat-change" id="weight-change">Goal: 225 lb</div>
-            </div>
-            <div class="stat-card" onclick="openSegment('sleep')">
-                <div class="stat-label">Sleep Score</div>
-                <div class="stat-value"><span id="sleep-score">—</span><span class="trend-arrow" id="sleep-arrow"></span></div>
-                <div class="stat-change" id="sleep-change">Oura</div>
-            </div>
-            <div class="stat-card" onclick="openSegment('visceral')">
-                <div class="stat-label">Visceral Fat</div>
-                <div class="stat-value"><span id="visceral-fat">—</span><span class="trend-arrow" id="visceral-arrow"></span></div>
-                <div class="stat-change" id="visceral-change">Target <10</div>
-            </div>
             <div class="stat-card" onclick="switchTab('reading')">
                 <div class="stat-label">Pages</div>
                 <div class="stat-value"><span id="reading-streak">0</span></div>
@@ -596,6 +581,21 @@
                 <div class="stat-label">Fasting</div>
                 <div class="stat-value"><span id="fasting-stat">—</span></div>
                 <div class="stat-change" id="fasting-change">Tap to start</div>
+            </div>
+            <div class="stat-card" onclick="openSegment('golfRounds')">
+                <div class="stat-label">Golf Rounds</div>
+                <div class="stat-value"><span id="total-golf">0</span><span class="trend-arrow" id="golf-rounds-arrow"></span></div>
+                <div class="stat-change" id="rounds-change">All time</div>
+            </div>
+            <div class="stat-card" onclick="openSegment('avgScore')">
+                <div class="stat-label">Avg Score</div>
+                <div class="stat-value"><span id="avg-golf-score">—</span><span class="trend-arrow" id="avg-score-arrow"></span></div>
+                <div class="stat-change" id="golf-trend">All time</div>
+            </div>
+            <div class="stat-card" onclick="openSegment('handicap')">
+                <div class="stat-label">Handicap</div>
+                <div class="stat-value"><span id="current-handicap">—</span><span class="trend-arrow" id="handicap-arrow"></span></div>
+                <div class="stat-change" id="handicap-trend">HCP Index</div>
             </div>
         </div>
 
