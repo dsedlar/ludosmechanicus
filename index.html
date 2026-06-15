@@ -140,6 +140,10 @@
             color: var(--primary);
             margin-bottom: 4px;
         }
+        .trend-arrow {
+            font-size: 18px;
+            font-weight: 700;
+        }
 
         .stat-change {
             font-size: 11px;
@@ -545,42 +549,42 @@
         <div class="quick-stats">
             <div class="stat-card" onclick="openSegment('strength')">
                 <div class="stat-label">Strength Days</div>
-                <div class="stat-value" id="strength-days">0/4</div>
+                <div class="stat-value"><span id="strength-days">0/4</span><span class="trend-arrow" id="strength-arrow"></span></div>
                 <div class="stat-change" id="strength-change">This week</div>
             </div>
             <div class="stat-card" onclick="openSegment('cardio')">
                 <div class="stat-label">Cardio Sessions</div>
-                <div class="stat-value" id="cardio-sessions">0</div>
+                <div class="stat-value"><span id="cardio-sessions">0</span><span class="trend-arrow" id="cardio-arrow"></span></div>
                 <div class="stat-change" id="cardio-change">This week</div>
             </div>
             <div class="stat-card" onclick="openSegment('golfRounds')">
                 <div class="stat-label">Golf Rounds</div>
-                <div class="stat-value" id="total-golf">0</div>
+                <div class="stat-value"><span id="total-golf">0</span><span class="trend-arrow" id="golf-rounds-arrow"></span></div>
                 <div class="stat-change" id="rounds-change">All time</div>
             </div>
             <div class="stat-card" onclick="openSegment('handicap')">
                 <div class="stat-label">Current Handicap</div>
-                <div class="stat-value" id="current-handicap">—</div>
+                <div class="stat-value"><span id="current-handicap">—</span><span class="trend-arrow" id="handicap-arrow"></span></div>
                 <div class="stat-change" id="handicap-trend">HCP Index</div>
             </div>
             <div class="stat-card" onclick="openSegment('avgScore')">
                 <div class="stat-label">Avg Score</div>
-                <div class="stat-value" id="avg-golf-score">—</div>
+                <div class="stat-value"><span id="avg-golf-score">—</span><span class="trend-arrow" id="avg-score-arrow"></span></div>
                 <div class="stat-change" id="golf-trend">All time</div>
             </div>
             <div class="stat-card" onclick="openSegment('weight')">
                 <div class="stat-label">Weight</div>
-                <div class="stat-value" id="current-weight">—</div>
+                <div class="stat-value"><span id="current-weight">—</span><span class="trend-arrow" id="weight-arrow"></span></div>
                 <div class="stat-change" id="weight-change">Goal: 225 lb</div>
             </div>
             <div class="stat-card" onclick="openSegment('sleep')">
                 <div class="stat-label">Avg Sleep Score</div>
-                <div class="stat-value" id="sleep-score">—</div>
+                <div class="stat-value"><span id="sleep-score">—</span><span class="trend-arrow" id="sleep-arrow"></span></div>
                 <div class="stat-change" id="sleep-change">Oura</div>
             </div>
             <div class="stat-card" onclick="openSegment('visceral')">
                 <div class="stat-label">Visceral Fat</div>
-                <div class="stat-value" id="visceral-fat">—</div>
+                <div class="stat-value"><span id="visceral-fat">—</span><span class="trend-arrow" id="visceral-arrow"></span></div>
                 <div class="stat-change" id="visceral-change">Target <10</div>
             </div>
             <div class="stat-card" onclick="switchTab('prs')">
@@ -3022,26 +3026,59 @@
             el.textContent = message;
         }
 
+        // Colored ↑/↓ next to a stat number. dir: 'up'|'down'|null; good → green, else red
+        function trendArrow(id, dir, good) {
+            const a = document.getElementById(id);
+            if (!a) return;
+            if (!dir) { a.textContent = ''; return; }
+            a.textContent = dir === 'up' ? ' ↑' : ' ↓';
+            a.style.color = good ? 'var(--success)' : 'var(--accent-power)';
+        }
+
         function updateStats() {
-            // Count strength days this week
             const now = new Date();
-            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            const thisWeekStrength = (appData.currentWeek && appData.currentWeek.days) ? 
+            const DAY = 86400000;
+
+            // ----- Strength: this week's days, trend vs last week, goal status -----
+            const thisWeekStrength = (appData.currentWeek && appData.currentWeek.days) ?
                 Object.values(appData.currentWeek.days).filter(d => d && d.completed).length : 0;
             document.getElementById('strength-days').textContent = `${thisWeekStrength}/4`;
-            document.getElementById('strength-change').textContent = 'This week';
+            const lwk = (appData.weekHistory || []).slice(-1)[0];
+            const lastWeekDays = lwk ? Object.values(lwk.days || {}).filter(d => d && d.completed).length : null;
+            trendArrow('strength-arrow', lastWeekDays == null ? null : (thisWeekStrength > lastWeekDays ? 'up' : thisWeekStrength < lastWeekDays ? 'down' : null), thisWeekStrength >= (lastWeekDays || 0));
+            const sChange = document.getElementById('strength-change');
+            sChange.textContent = thisWeekStrength >= 4 ? 'Week complete 🎉' : thisWeekStrength >= 3 ? 'On track this week' : 'Below weekly target';
+            sChange.style.color = thisWeekStrength >= 3 ? 'var(--success)' : 'var(--warning)';
 
+            // ----- Cardio: total count, this-week activity + trend vs last week -----
             document.getElementById('cardio-sessions').textContent = appData.cardio.length;
-            document.getElementById('total-golf').textContent = appData.golf.length;
+            const cThis = appData.cardio.filter(c => (now - new Date(c.date)) / DAY <= 7).length;
+            const cLast = appData.cardio.filter(c => { const dd = (now - new Date(c.date)) / DAY; return dd > 7 && dd <= 14; }).length;
+            trendArrow('cardio-arrow', cThis > cLast ? 'up' : cThis < cLast ? 'down' : null, cThis >= cLast);
+            const cChange = document.getElementById('cardio-change');
+            cChange.textContent = `${cThis} this week`;
+            cChange.style.color = cThis > 0 ? 'var(--success)' : 'var(--text-secondary)';
 
-            // Weight
-            if (appData.ouraApiData && appData.ouraApiData.length > 0) {
-                const latestWeight = appData.ouraApiData.find(o => o.weight);
-                if (latestWeight && latestWeight.weight) {
-                    const lbsToGo = latestWeight.weight - 225;   // goal is to get DOWN to 225
-                    document.getElementById('current-weight').textContent = latestWeight.weight.toFixed(1);
-                    document.getElementById('weight-change').textContent = lbsToGo > 0 ? `${lbsToGo.toFixed(1)} lbs to go` : 'Goal reached! 🎉';
-                }
+            // ----- Golf rounds: total + this-year count -----
+            document.getElementById('total-golf').textContent = appData.golf.length;
+            const gThisYear = appData.golf.filter(g => g.score > 0 && g.date >= (now.getFullYear() + '-01-01')).length;
+            const roundsChange = document.getElementById('rounds-change');
+            roundsChange.textContent = `${gThisYear} this year`;
+            roundsChange.style.color = 'var(--text-secondary)';
+
+            // ----- Weight: pounds to goal + losing/gaining trend (down = good) -----
+            const wEntries = (appData.ouraApiData || []).filter(o => o.weight > 0).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+            if (wEntries.length > 0) {
+                const curW = wEntries[wEntries.length - 1].weight;
+                const lbsToGo = curW - 225;   // goal is to get DOWN to 225
+                document.getElementById('current-weight').textContent = curW.toFixed(1);
+                const wChange = document.getElementById('weight-change');
+                wChange.textContent = lbsToGo > 0 ? `${lbsToGo.toFixed(1)} lbs to go` : 'Goal reached! 🎉';
+                wChange.style.color = lbsToGo > 0 ? 'var(--text-secondary)' : 'var(--success)';
+                if (wEntries.length >= 2) {
+                    const prevW = wEntries[wEntries.length - 2].weight;
+                    trendArrow('weight-arrow', curW < prevW ? 'down' : curW > prevW ? 'up' : null, curW < prevW);
+                } else trendArrow('weight-arrow', null);
             }
 
             // Golf Stats
@@ -3053,47 +3090,40 @@
                     const avgHcp = (handicaps.reduce((a, b) => a + b) / handicaps.length).toFixed(1);
                     document.getElementById('current-handicap').textContent = currentHcp.toFixed(1);
                     
-                    // Handicap trend
+                    // Handicap trend (lower = better)
+                    const hChange = document.getElementById('handicap-trend');
                     if (handicaps.length > 1) {
-                        const trend = handicaps[handicaps.length - 1] - currentHcp; // Older - newer
-                        if (trend > 0.1) {
-                            document.getElementById('handicap-trend').textContent = `↓ Improving (${trend.toFixed(1)})`;
-                            document.getElementById('handicap-trend').style.color = 'var(--success)';
-                        } else if (trend < -0.1) {
-                            document.getElementById('handicap-trend').textContent = `↑ Rising (${Math.abs(trend).toFixed(1)})`;
-                            document.getElementById('handicap-trend').style.color = 'var(--accent-power)';
-                        } else {
-                            document.getElementById('handicap-trend').textContent = 'Stable';
-                        }
+                        const trend = handicaps[handicaps.length - 1] - currentHcp; // older - newer; >0 = improved (lower)
+                        if (trend > 0.1) { trendArrow('handicap-arrow', 'down', true); hChange.textContent = `Improving (${trend.toFixed(1)})`; hChange.style.color = 'var(--success)'; }
+                        else if (trend < -0.1) { trendArrow('handicap-arrow', 'up', false); hChange.textContent = `Rising (${Math.abs(trend).toFixed(1)})`; hChange.style.color = 'var(--accent-power)'; }
+                        else { trendArrow('handicap-arrow', null); hChange.textContent = 'Stable'; hChange.style.color = 'var(--text-secondary)'; }
                     } else {
-                        document.getElementById('handicap-trend').textContent = `Avg: ${avgHcp}`;
+                        trendArrow('handicap-arrow', null);
+                        hChange.textContent = 'Calculated index'; hChange.style.color = 'var(--text-secondary)';
                     }
                 } else {
                     document.getElementById('current-handicap').textContent = '—';
-                    document.getElementById('handicap-trend').textContent = 'Log rounds';
+                    trendArrow('handicap-arrow', null);
+                    document.getElementById('handicap-trend').textContent = 'Need rating + slope';
+                    document.getElementById('handicap-trend').style.color = 'var(--text-secondary)';
                 }
 
-                // Average Score
-                const grintRounds = appData.golf.filter(g => g.source === 'grint');
-                const avgScore = grintRounds.length > 0 ? (grintRounds.reduce((sum, g) => sum + (g.score || 0), 0) / grintRounds.length).toFixed(1) : '—';
-                document.getElementById('avg-golf-score').textContent = avgScore;
-                
-                // Average Drive Distance
+                // Average Score (lower = better)
+                const grintRounds = appData.golf.filter(g => g.source === 'grint' && g.score > 0);
+                document.getElementById('avg-golf-score').textContent = grintRounds.length > 0 ? (grintRounds.reduce((sum, g) => sum + g.score, 0) / grintRounds.length).toFixed(1) : '—';
+                const gChange = document.getElementById('golf-trend');
+                if (grintRounds.length > 1) {
+                    const scoreTrend = grintRounds[Math.min(4, grintRounds.length - 1)].score - grintRounds[0].score; // older - recent; >0 = improving
+                    if (scoreTrend > 0) { trendArrow('avg-score-arrow', 'down', true); gChange.textContent = 'Improving'; gChange.style.color = 'var(--success)'; }
+                    else if (scoreTrend < 0) { trendArrow('avg-score-arrow', 'up', false); gChange.textContent = 'Declining'; gChange.style.color = 'var(--accent-power)'; }
+                    else { trendArrow('avg-score-arrow', null); gChange.textContent = 'Stable'; gChange.style.color = 'var(--text-secondary)'; }
+                } else { trendArrow('avg-score-arrow', null); gChange.textContent = 'Need 2+ rounds'; gChange.style.color = 'var(--text-secondary)'; }
+
+                // Average Drive Distance (card may not exist; guard)
                 const drives = appData.golf.filter(g => g.driveDist > 0).map(g => g.driveDist);
                 if (drives.length > 0) {
-                    const avgDrive = (drives.reduce((a, b) => a + b) / drives.length).toFixed(0);
                     const ad = document.getElementById('avg-drive');
-                    const dt = document.getElementById('drive-trend');
-                    if (ad) ad.textContent = avgDrive;       // these cards don't currently exist
-                    if (dt) dt.textContent = 'yd avg';       // guard so stats never crash
-                }
-
-                // Trend calculation
-                if (grintRounds.length > 1) {
-                    const recentScore = grintRounds[0].score;
-                    const olderScore = grintRounds[Math.min(4, grintRounds.length - 1)].score;
-                    const scoreTrend = olderScore - recentScore;
-                    document.getElementById('golf-trend').textContent = scoreTrend > 0 ? `↓ Improving` : scoreTrend < 0 ? '↑ Declining' : 'Stable';
+                    if (ad) ad.textContent = (drives.reduce((a, b) => a + b) / drives.length).toFixed(0);
                 }
             }
 
@@ -3105,15 +3135,33 @@
                 const q = avgSleep >= 85 ? 'Optimal recovery' : avgSleep >= 70 ? 'Good recovery' : 'Pay attention';
                 sleepChangeEl.textContent = `${q} · ${sleepNights.length} night${sleepNights.length === 1 ? '' : 's'}`;
                 sleepChangeEl.style.color = avgSleep >= 70 ? 'var(--success)' : avgSleep >= 60 ? 'var(--warning)' : 'var(--accent-power)';
+                if (sleepNights.length >= 4) {   // newest-first: recent 3 vs prior 3
+                    const recent = sleepNights.slice(0, 3).reduce((s, o) => s + o.sleepScore, 0) / 3;
+                    const prior = sleepNights.slice(3, 6);
+                    const priorAvg = prior.reduce((s, o) => s + o.sleepScore, 0) / prior.length;
+                    trendArrow('sleep-arrow', recent > priorAvg ? 'up' : recent < priorAvg ? 'down' : null, recent >= priorAvg);
+                } else trendArrow('sleep-arrow', null);
             } else {
                 document.getElementById('sleep-score').textContent = '—';
                 sleepChangeEl.textContent = 'No sleep data yet';
                 sleepChangeEl.style.color = 'var(--text-secondary)';
+                trendArrow('sleep-arrow', null);
             }
 
+            // ----- Visceral fat: target status + trend (down = good) -----
             const visList = getVisceralSeries();
+            const vChange = document.getElementById('visceral-change');
             if (visList.length > 0) {
-                document.getElementById('visceral-fat').textContent = visList[visList.length - 1].level.toFixed(1);
+                const curV = visList[visList.length - 1].level;
+                document.getElementById('visceral-fat').textContent = curV.toFixed(1);
+                vChange.textContent = curV < 10 ? 'Under target 🎉' : 'Target < 10';
+                vChange.style.color = curV < 10 ? 'var(--success)' : 'var(--warning)';
+                if (visList.length >= 2) {
+                    const prevV = visList[visList.length - 2].level;
+                    trendArrow('visceral-arrow', curV < prevV ? 'down' : curV > prevV ? 'up' : null, curV < prevV);
+                } else trendArrow('visceral-arrow', null);
+            } else {
+                trendArrow('visceral-arrow', null);
             }
 
             const prc = document.getElementById('pr-count');
