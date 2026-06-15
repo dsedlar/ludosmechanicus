@@ -3133,7 +3133,7 @@
                 const avgSleep = sleepNights.reduce((sum, o) => sum + o.sleepScore, 0) / sleepNights.length;
                 document.getElementById('sleep-score').textContent = avgSleep.toFixed(0);
                 const q = avgSleep >= 85 ? 'Optimal recovery' : avgSleep >= 70 ? 'Good recovery' : 'Pay attention';
-                sleepChangeEl.textContent = `${q} · ${sleepNights.length} night${sleepNights.length === 1 ? '' : 's'}`;
+                sleepChangeEl.textContent = q;
                 sleepChangeEl.style.color = avgSleep >= 70 ? 'var(--success)' : avgSleep >= 60 ? 'var(--warning)' : 'var(--accent-power)';
                 if (sleepNights.length >= 4) {   // newest-first: recent 3 vs prior 3
                     const recent = sleepNights.slice(0, 3).reduce((s, o) => s + o.sleepScore, 0) / 3;
