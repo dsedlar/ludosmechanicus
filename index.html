@@ -3038,9 +3038,9 @@
             if (appData.ouraApiData && appData.ouraApiData.length > 0) {
                 const latestWeight = appData.ouraApiData.find(o => o.weight);
                 if (latestWeight && latestWeight.weight) {
-                    const lbsToGo = (225 - latestWeight.weight).toFixed(1);
+                    const lbsToGo = latestWeight.weight - 225;   // goal is to get DOWN to 225
                     document.getElementById('current-weight').textContent = latestWeight.weight.toFixed(1);
-                    document.getElementById('weight-change').textContent = lbsToGo > 0 ? `${lbsToGo} lbs to go` : 'Goal reached!';
+                    document.getElementById('weight-change').textContent = lbsToGo > 0 ? `${lbsToGo.toFixed(1)} lbs to go` : 'Goal reached! 🎉';
                 }
             }
 
