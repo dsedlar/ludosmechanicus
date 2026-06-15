@@ -3840,11 +3840,19 @@
                 { label: 'Strength', done: !!(appData.currentWeek && Object.values(appData.currentWeek.days || {}).some(d => d && d.completed && d.completedDate === t)) },
                 { label: 'Cardio', done: (appData.cardio || []).some(c => c.date === t) }
             ];
-            el.innerHTML = items.map(it =>
-                `<div style="display:flex; align-items:center; gap:8px; background:var(--bg-hover); padding:10px 14px; border-radius:var(--radius); ${it.done ? 'border:1px solid var(--success);' : 'border:1px solid var(--border);'}">
-                    <i class="ti ${it.done ? 'ti-circle-check' : 'ti-circle'}" style="color:${it.done ? 'var(--success)' : 'var(--text-secondary)'}; font-size:18px;"></i>
-                    <span style="color:var(--text-primary); font-size:14px;">${it.label}</span>
-                </div>`).join('');
+            const done = items.filter(i => i.done).length;
+            const ratio = done / items.length;
+            const color = `hsl(${Math.round(ratio * 120)}, 65%, 48%)`;   // 0 = red → 1 = green
+            el.innerHTML = `
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                    <div style="flex:1; background:var(--bg-card); height:16px; border-radius:8px; overflow:hidden;">
+                        <div style="height:100%; width:${ratio * 100}%; background:${color}; border-radius:8px; transition:width .3s, background .3s;"></div>
+                    </div>
+                    <div style="font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:16px; color:${color}; white-space:nowrap;">${done}/${items.length} today</div>
+                </div>
+                <div style="display:flex; flex-wrap:wrap; gap:10px 16px;">
+                    ${items.map(it => `<span style="font-size:13px; color:${it.done ? 'var(--success)' : 'var(--text-secondary)'}; display:flex; align-items:center; gap:5px;"><i class="ti ${it.done ? 'ti-circle-check' : 'ti-circle'}" style="font-size:15px;"></i>${it.label}</span>`).join('')}
+                </div>`;
         }
 
         function renderJournal() {
