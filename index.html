@@ -1009,7 +1009,12 @@
                     Log Grint Round
                 </div>
                 <div class="info-box">
-                    After playing a round, log your Grint data here. Captures score, handicap, course info, and performance metrics.
+                    After playing a round, log your Grint data here. Pick a course to auto-load tees, ratings &amp; weather; your handicap is calculated from your scores.
+                </div>
+                <div id="grint-hcp-box" style="background:var(--bg-hover); border-left:3px solid var(--accent); border-radius:0 10px 10px 0; padding:12px 16px; margin-bottom:16px;">
+                    <span style="color:var(--text-secondary); font-size:12px;">Calculated Handicap Index (World Handicap System)</span>
+                    <div style="font-family:'Space Grotesk', sans-serif; font-size:26px; font-weight:700; color:var(--primary);" id="grint-calc-index">—</div>
+                    <span id="grint-calc-note" style="color:var(--text-secondary); font-size:12px;">Log 3+ rounds with course rating &amp; slope to calculate.</span>
                 </div>
                 <div style="background: var(--bg-hover); padding: 20px; border-radius: var(--radius); margin-bottom: 20px;">
                     <div class="form-row">
@@ -1020,7 +1025,7 @@
                         <div class="form-group">
                             <label>Course Name</label>
                             <div style="position:relative;">
-                                <input type="text" id="grint-course" autocomplete="off" placeholder="Type 3+ letters to search courses" oninput="onCourseInput()" onfocus="onCourseInput()" onblur="setTimeout(hideCourseDropdown, 150)">
+                                <input type="text" id="grint-course" autocomplete="off" placeholder="Type 3+ letters to search courses" oninput="onCourseInput()" onfocus="onCourseInput()" onblur="setTimeout(function(){ hideCourseDropdown(); maybeLoadTees(); }, 150)">
                                 <div id="course-results" class="course-dd" style="display:none;" onmousedown="event.preventDefault()"></div>
                             </div>
                             <div id="course-search-status" style="font-size:11px; color:var(--text-secondary); margin-top:4px; min-height:14px;"></div>
@@ -1038,7 +1043,7 @@
                             <input type="text" id="grint-location" placeholder="City, State">
                         </div>
                         <div class="form-group">
-                            <label>Course Rating (optional)</label>
+                            <label>Course Rating</label>
                             <input type="number" id="grint-rating" step="0.1" placeholder="71.2">
                         </div>
                     </div>
@@ -1053,12 +1058,13 @@
                             <input type="number" id="grint-par" placeholder="72">
                         </div>
                         <div class="form-group">
-                            <label>Your Handicap</label>
-                            <input type="number" id="grint-handicap" step="0.1" placeholder="5.2">
+                            <label>Tees</label>
+                            <select id="grint-tee" onchange="onTeeSelected()"><option value="">Pick a course first</option></select>
+                            <div id="grint-tee-status" style="font-size:11px; color:var(--text-secondary); margin-top:4px;"></div>
                         </div>
                         <div class="form-group">
-                            <label>Handicap Index</label>
-                            <input type="number" id="grint-hcp-index" step="0.1" placeholder="4.8">
+                            <label>Slope</label>
+                            <input type="number" id="grint-slope" placeholder="125">
                         </div>
                     </div>
 
@@ -1978,8 +1984,7 @@
             const rating = parseFloat(document.getElementById('grint-rating').value) || 0;
             const score = parseFloat(document.getElementById('grint-score').value);
             const par = parseFloat(document.getElementById('grint-par').value) || 72;
-            const handicap = parseFloat(document.getElementById('grint-handicap').value) || 0;
-            const hcpIndex = parseFloat(document.getElementById('grint-hcp-index').value) || 0;
+            const slope = parseFloat(document.getElementById('grint-slope').value) || 0;
             const fairways = parseFloat(document.getElementById('grint-fairways').value) || 0;
             const gir = parseFloat(document.getElementById('grint-gir').value) || 0;
             const putts = parseFloat(document.getElementById('grint-putts').value) || 0;
@@ -2005,16 +2010,15 @@
 
             const vsPar = score - par;
 
-            appData.golf.push({
+            const round = {
                 date,
                 course,
                 location,
                 rating,
+                slope,
                 score,
                 par,
                 vsPar,
-                handicap,
-                hcpIndex,
                 fairways,
                 gir,
                 putts,
@@ -2035,9 +2039,13 @@
                 lat: selectedCourseCoords ? selectedCourseCoords.lat : null,
                 lon: selectedCourseCoords ? selectedCourseCoords.lon : null,
                 source: 'grint'
-            });
-
+            };
+            round.differential = roundDifferential(round);
+            appData.golf.push(round);
             appData.golf.sort((a, b) => new Date(b.date) - new Date(a.date));
+            const idx = computeHandicapIndex(appData.golf);   // WHS index incl. this round
+            round.handicap = idx;
+            round.hcpIndex = idx;
             flagNewPRs();
             saveData(appData);
 
@@ -2046,7 +2054,9 @@
             document.getElementById('grint-course').value = '';
             document.getElementById('grint-location').value = '';
             document.getElementById('grint-score').value = '';
-            document.getElementById('grint-handicap').value = '';
+            document.getElementById('grint-rating').value = '';
+            document.getElementById('grint-slope').value = '';
+            document.getElementById('grint-par').value = '';
             document.getElementById('grint-notes').value = '';
             document.getElementById('grint-play').value = '';
             document.getElementById('grint-temp').value = '';
@@ -2057,6 +2067,7 @@
             renderChips('swing'); renderChips('struggles');
             setWeatherStatus('');
             selectedCourseCoords = null;
+            currentTees = []; lastTeeCourse = ''; populateTeeSelect(); setTeeStatus('');
 
             renderAllGolfTable();
             updateStats();
@@ -2125,6 +2136,7 @@
             selectedCourseCoords = (c.lat && c.lon) ? { lat: c.lat, lon: c.lon } : null;
             hideCourseDropdown();
             setCourseStatus('');
+            loadTeesForCourse(c.name);
             if (document.getElementById('grint-date').value) fetchWeatherForRound(false);
         }
 
@@ -2264,6 +2276,116 @@
 
         function onRoundDateChange() { if (document.getElementById('grint-course').value.trim()) fetchWeatherForRound(false); }
 
+        // ----- Tees + ratings (GolfCourseAPI) -----
+        const GOLF_API_KEY = "MTLEIVU6P3XU7L5KWMKLTIL4P4";
+        let currentTees = [], teesCache = {}, lastTeeCourse = '';
+
+        function setTeeStatus(msg) { const el = document.getElementById('grint-tee-status'); if (el) el.textContent = msg; }
+
+        function populateTeeSelect() {
+            const sel = document.getElementById('grint-tee');
+            if (!sel) return;
+            sel.innerHTML = `<option value="">${currentTees.length ? 'Select tee…' : 'No tees — enter rating/slope manually'}</option>` +
+                currentTees.map((t, i) => `<option value="${i}">${escHtml(t.tee_name)} — ${t.course_rating}/${t.slope_rating}${t.total_yards ? ', ' + t.total_yards + 'y' : ''}</option>`).join('');
+        }
+
+        function onTeeSelected() {
+            const i = document.getElementById('grint-tee').value;
+            if (i === '') return;
+            const t = currentTees[parseInt(i, 10)];
+            if (!t) return;
+            if (t.course_rating) document.getElementById('grint-rating').value = t.course_rating;
+            if (t.slope_rating) document.getElementById('grint-slope').value = t.slope_rating;
+            if (t.par_total) document.getElementById('grint-par').value = t.par_total;
+        }
+
+        async function loadTeesForCourse(name) {
+            if (!name) return;
+            const key = name.toLowerCase();
+            lastTeeCourse = key;
+            setTeeStatus('Loading tees…');
+            try {
+                let data = teesCache[key];
+                if (!data) {
+                    const res = await fetch(`https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(name)}`, { headers: { 'Authorization': 'Key ' + GOLF_API_KEY } });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const j = await res.json();
+                    const courses = j.courses || [];
+                    const lc = name.toLowerCase();
+                    const course = courses.find(c => (c.club_name || '').toLowerCase() === lc || (c.course_name || '').toLowerCase() === lc)
+                        || courses.find(c => (c.club_name || '').toLowerCase().includes(lc) || lc.includes((c.club_name || '').toLowerCase()))
+                        || courses[0];
+                    if (!course) { teesCache[key] = { tees: [] }; }
+                    else {
+                        const male = (course.tees && course.tees.male) || [];
+                        const female = (course.tees && course.tees.female) || [];
+                        const loc = course.location || {};
+                        teesCache[key] = { tees: male.length ? male : female, lat: loc.latitude, lon: loc.longitude };
+                    }
+                    data = teesCache[key];
+                }
+                currentTees = data.tees || [];
+                if (data.lat && data.lon) selectedCourseCoords = { lat: data.lat, lon: data.lon };
+                populateTeeSelect();
+                setTeeStatus(currentTees.length ? `${currentTees.length} tees loaded — pick one` : 'No tee data for this course — enter manually.');
+            } catch (e) {
+                console.error('Tee load failed:', e);
+                currentTees = []; populateTeeSelect();
+                setTeeStatus('Tee lookup failed (key/limit?) — enter rating & slope manually.');
+            }
+        }
+
+        function maybeLoadTees() {
+            const name = document.getElementById('grint-course').value.trim();
+            if (name && name.toLowerCase() !== lastTeeCourse) loadTeesForCourse(name);
+        }
+
+        // ----- Handicap Index (World Handicap System) from scores -----
+        function roundDifferential(g) {
+            const cr = parseFloat(g.rating), slope = parseFloat(g.slope), score = parseFloat(g.score);
+            if (!score || !cr || !slope) return null;
+            return (113 / slope) * (score - cr);
+        }
+        // [differentials to use, adjustment] by number of acceptable rounds
+        function whsParams(n) {
+            if (n <= 3) return [1, -2.0];
+            if (n === 4) return [1, -1.0];
+            if (n === 5) return [1, 0];
+            if (n === 6) return [2, -1.0];
+            if (n <= 8) return [2, 0];
+            if (n <= 11) return [3, 0];
+            if (n <= 14) return [4, 0];
+            if (n <= 16) return [5, 0];
+            if (n <= 18) return [6, 0];
+            if (n === 19) return [7, 0];
+            return [8, 0];
+        }
+        function computeHandicapIndex(rounds) {
+            const diffs = (rounds || []).filter(g => g.score > 0)
+                .map(g => ({ date: g.date, diff: roundDifferential(g) }))
+                .filter(x => x.diff != null)
+                .sort((a, b) => new Date(b.date) - new Date(a.date))   // newest first
+                .slice(0, 20);
+            if (diffs.length < 3) return null;
+            const [count, adj] = whsParams(diffs.length);
+            const lowest = diffs.map(x => x.diff).sort((a, b) => a - b).slice(0, count);
+            return Math.round((lowest.reduce((a, b) => a + b, 0) / lowest.length + adj) * 10) / 10;
+        }
+        function updateHandicapDisplay() {
+            const el = document.getElementById('grint-calc-index');
+            if (!el) return;
+            const note = document.getElementById('grint-calc-note');
+            const usable = (appData.golf || []).filter(g => g.score > 0 && roundDifferential(g) != null);
+            const idx = computeHandicapIndex(appData.golf);
+            if (idx == null) {
+                el.textContent = '—';
+                if (note) note.textContent = `Log 3+ rounds with course rating & slope to calculate (have ${usable.length}).`;
+            } else {
+                el.textContent = idx.toFixed(1);
+                if (note) note.textContent = `From your best differentials across ${Math.min(usable.length, 20)} recent rounds.`;
+            }
+        }
+
         function renderAllGolfTable() {
             const tbody = document.getElementById('all-golf-table');
             tbody.innerHTML = '';
@@ -2285,6 +2407,7 @@
                 tbody.appendChild(row);
             });
             refreshCourseList();
+            updateHandicapDisplay();
         }
 
         function deleteGolf(idx) {
@@ -2899,7 +3022,7 @@
                 // Current Handicap
                 const handicaps = appData.golf.filter(g => g.handicap > 0).map(g => g.handicap);
                 if (handicaps.length > 0) {
-                    const currentHcp = handicaps[0]; // Most recent
+                    const currentHcp = computeHandicapIndex(appData.golf) ?? handicaps[0]; // calculated WHS index
                     const avgHcp = (handicaps.reduce((a, b) => a + b) / handicaps.length).toFixed(1);
                     document.getElementById('current-handicap').textContent = currentHcp.toFixed(1);
                     
