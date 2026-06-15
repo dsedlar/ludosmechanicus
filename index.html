@@ -1979,38 +1979,27 @@
             const completed = Object.values(week.days).filter(d => d.completed).length;
             const total = 4;
 
+            const ratio = completed / total;
+            const color = `hsl(${Math.round(ratio * 120)}, 65%, 48%)`;   // 0 = red → 4 = green
+
             let html = `
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
-            `;
-
-            ['day1', 'day2', 'day3', 'day4'].forEach((dayKey, idx) => {
-                const day = week.days[dayKey];
-                const isComplete = day.completed;
-                html += `
-                    <div style="background: ${isComplete ? 'var(--success)' : 'var(--bg-hover)'}; padding: 12px; border-radius: var(--radius); text-align: center;">
-                        <div style="font-weight: 600; color: ${isComplete ? 'white' : 'var(--text-primary)'};">Day ${idx + 1}</div>
-                        <div style="font-size: 24px; margin: 4px 0;">${isComplete ? '✓' : '○'}</div>
+                <div style="display:flex; align-items:center; gap:14px; margin-bottom:16px;">
+                    <div style="flex:1; background:var(--bg-card); height:20px; border-radius:10px; overflow:hidden;">
+                        <div style="height:100%; width:${ratio * 100}%; background:${color}; border-radius:10px; transition:width .3s, background .3s;"></div>
                     </div>
-                `;
-            });
-
-            html += `
-                </div>
-                <div style="background: var(--bg-hover); padding: 12px; border-radius: var(--radius); text-align: center; margin-bottom: 16px;">
-                    <div style="font-size: 24px; color: var(--primary); font-weight: 600;">${completed}/4 Days</div>
+                    <div style="font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:18px; color:${color}; white-space:nowrap;">${completed}/${total} workouts</div>
                 </div>
             `;
 
-            if (completed === 4) {
+            if (completed === total) {
                 html += `
-                    <button class="btn-primary" style="width: 100%; background: var(--success); font-size: 14px; padding: 16px;" 
+                    <button class="btn-primary" style="width: 100%; background: var(--success); font-size: 14px; padding: 16px;"
                         onclick="completeWeekAndProgress()">
                         ✓ Week Complete! Generate Next Week (with Progression)
                     </button>
                 `;
             }
 
-            html += `</div>`;
             document.getElementById('week-completion-display').innerHTML = html;
         }
 
