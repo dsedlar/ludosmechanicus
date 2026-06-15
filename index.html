@@ -3832,7 +3832,7 @@
             const color = `hsl(${Math.round(ratio * 120)}, 65%, 48%)`;   // 0 = red → 1 = green
             el.innerHTML = `
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-                    <div style="flex:1; background:var(--bg-card); height:16px; border-radius:8px; overflow:hidden;">
+                    <div style="flex:1; background:rgba(239,68,68,0.18); border:1px solid var(--border); height:16px; border-radius:8px; overflow:hidden;">
                         <div style="height:100%; width:${ratio * 100}%; background:${color}; border-radius:8px; transition:width .3s, background .3s;"></div>
                     </div>
                     <div style="font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:16px; color:${color}; white-space:nowrap;">${done}/${items.length} today</div>
