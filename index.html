@@ -907,6 +907,7 @@
                             <th>HRV</th>
                             <th>Readiness</th>
                             <th>Activity</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody id="oura-api-table"></tbody>
@@ -1748,19 +1749,36 @@
         function renderOuraApiTable() {
             const tbody = document.getElementById('oura-api-table');
             tbody.innerHTML = '';
-
+            const inp = (date, field, val, step) => `<input type="number"${step ? ` step="${step}"` : ''} value="${val || ''}" style="width:64px; background:var(--bg-hover); border:1px solid var(--border); color:var(--text-primary); border-radius:4px; padding:4px 6px;" onchange="updateOuraEntry('${date}','${field}',this.value)">`;
             appData.ouraApiData.slice(0, 30).forEach(o => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${o.date}</td>
-                    <td class="data-value">${o.sleepScore || '—'}</td>
-                    <td class="data-value">${o.sleepDuration || '—'}</td>
-                    <td class="data-value">${o.hrv || '—'}</td>
-                    <td class="data-value">${o.readiness || '—'}</td>
-                    <td class="data-value">${o.activity || '—'}</td>
+                    <td>${inp(o.date, 'sleepScore', o.sleepScore)}</td>
+                    <td>${inp(o.date, 'sleepDuration', o.sleepDuration, '0.1')}</td>
+                    <td>${inp(o.date, 'hrv', o.hrv)}</td>
+                    <td>${inp(o.date, 'readiness', o.readiness)}</td>
+                    <td>${inp(o.date, 'activity', o.activity)}</td>
+                    <td><button class="delete-btn" onclick="deleteOuraEntry('${o.date}')">Delete</button></td>
                 `;
                 tbody.appendChild(row);
             });
+        }
+
+        // Edit / delete an individual Oura day
+        function updateOuraEntry(date, field, value) {
+            const o = (appData.ouraApiData || []).find(x => x.date === date);
+            if (!o) return;
+            o[field] = parseFloat(value) || 0;
+            saveData(appData);
+            updateStats();
+        }
+        function deleteOuraEntry(date) {
+            if (!confirm('Delete the Oura entry for ' + date + '?')) return;
+            appData.ouraApiData = (appData.ouraApiData || []).filter(x => x.date !== date);
+            saveData(appData);
+            renderOuraApiTable();
+            updateStats();
         }
 
         // ============ PRE-BUILT WORKOUT SYSTEM ============
