@@ -1438,7 +1438,8 @@
                 books: [],
                 fasting: { activeStart: null, goalHours: 16, log: [] },
                 journal: [],
-                perfectWeeks: []
+                perfectWeeks: [],
+                supersets: {}
             };
         }
 
@@ -2013,6 +2014,18 @@
             };
         }
 
+        // Superset groups → colors (kept per day+exercise so they persist across weeks)
+        const SUPERSET_COLORS = { A: '#3b82f6', B: '#f59e0b', C: '#14b8a6', D: '#a855f7', E: '#ec4899' };
+        function setSuperset(dayKey, exIdx, group) {
+            const ex = appData.currentWeek.days[dayKey].exercises[exIdx];
+            if (!ex) return;
+            appData.supersets = appData.supersets || {};
+            appData.supersets[dayKey] = appData.supersets[dayKey] || {};
+            if (group) appData.supersets[dayKey][ex.name] = group; else delete appData.supersets[dayKey][ex.name];
+            saveData(appData);
+            renderWorkout(parseInt(dayKey.replace('day', ''), 10));
+        }
+
         function renderWorkout(dayNum) {
             const currentWeek = appData.currentWeek;
             const dayKey = 'day' + dayNum;
@@ -2037,12 +2050,15 @@
                 const isWeight = !ex.bodyweight && !ex.reps.includes('sec') && !ex.reps.includes('stretch') && !ex.reps.includes('circuit') && !ex.reps.includes('AMRAP');
                 const suggestion = isWeight ? getSuggestedWeight(ex.name) : null;
                 const previous = isWeight ? getPreviousWeight(ex.name) : null;
-                
+                const group = ((appData.supersets && appData.supersets[dayKey]) || {})[ex.name] || '';
+                const ssColor = group ? SUPERSET_COLORS[group] : '';
+                const ssOptions = ['', 'A', 'B', 'C', 'D', 'E'].map(g => `<option value="${g}"${group === g ? ' selected' : ''}>${g ? 'SS ' + g : 'SS —'}</option>`).join('');
+
                 html += `
-                    <div class="exercise-row ${ex.completed ? 'completed' : ''}">
+                    <div class="exercise-row ${ex.completed ? 'completed' : ''}"${ssColor ? ` style="border-left:4px solid ${ssColor};"` : ''}>
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                             <div style="flex: 1;">
-                                <div class="exercise-name">${ex.name}</div>
+                                <div class="exercise-name">${ex.name}${group ? `<span style="background:${ssColor}; color:#fff; font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; margin-left:8px; vertical-align:middle;">SUPERSET ${group}</span>` : ''}</div>
                                 <div class="exercise-details">
                                     ${ex.sets}x${ex.reps} · RPE ${ex.rpe}
                                     ${ex.note ? `<div style="margin-top: 4px; font-style: italic; color: var(--primary);">→ ${ex.note}</div>` : ''}
@@ -2054,14 +2070,15 @@
                                     </div>
                                 ` : ''}
                             </div>
-                            <div style="display: flex; gap: 8px; margin-left: 12px;">
+                            <div style="display: flex; gap: 8px; margin-left: 12px; align-items: flex-start;">
+                                <select onchange="setSuperset('${dayKey}', ${idx}, this.value)" title="Superset group" style="background:var(--bg-hover); border:1px solid ${ssColor || 'var(--border)'}; color:var(--text-primary); border-radius:6px; padding:6px; font-size:12px;">${ssOptions}</select>
                                 ${isWeight ? `
-                                    <input type="number" class="exercise-weight-input" 
-                                        value="${ex.weight || ''}" 
+                                    <input type="number" class="exercise-weight-input"
+                                        value="${ex.weight || ''}"
                                         placeholder="${suggestion ? suggestion.weight : 'lbs'}"
                                         onchange="updateExerciseWeight('${dayKey}', ${idx}, this.value)">
                                 ` : ''}
-                                <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;" 
+                                <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
                                     onclick="toggleExerciseComplete('${dayKey}', ${idx})">
                                     ${ex.completed ? '✓' : 'Done'}
                                 </button>
@@ -4288,6 +4305,7 @@
             d.fasting     = d.fasting     || { activeStart: null, goalHours: 16, log: [] };
             d.journal     = d.journal     || [];
             d.perfectWeeks = d.perfectWeeks || [];
+            d.supersets   = d.supersets   || {};
         }
 
         function userDoc() {
