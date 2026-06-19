@@ -650,6 +650,25 @@
                 <div id="seg-story" class="seg-story"></div>
             </div>
         </div>
+
+        <div id="weight-modal" class="seg-modal" onclick="if(event.target===this)closeWeightModal()">
+            <div class="seg-modal-card" style="max-width:520px;">
+                <div class="seg-modal-head">
+                    <div class="seg-title"><span class="section-icon"><i class="ti ti-scale"></i></span>Log Body Composition</div>
+                    <button class="seg-close" onclick="closeWeightModal()" aria-label="Close"><i class="ti ti-x"></i></button>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Date</label><input type="date" id="qw-date"></div>
+                    <div class="form-group"><label>Weight (lbs)</label><input type="number" id="qw-weight" step="0.1" placeholder="254"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Body Fat %</label><input type="number" id="qw-bf" step="0.1" placeholder="34.1"></div>
+                    <div class="form-group"><label>Visceral Fat</label><input type="number" id="qw-visceral" step="0.1" placeholder="12"></div>
+                </div>
+                <button class="btn-primary" onclick="logWeightFromModal()" style="margin-top:16px; width:100%;">Save</button>
+                <div id="qw-message" style="margin-top:12px;"></div>
+            </div>
+        </div>
         <style>
             .seg-modal { display:none; position:fixed; inset:0; background:rgba(2,6,23,.72); z-index:1500; align-items:center; justify-content:center; padding:16px; }
             .seg-modal-card { background:var(--bg-card); border:1px solid var(--border); border-radius:16px; width:100%; max-width:680px; max-height:88vh; overflow-y:auto; padding:22px; }
@@ -1630,20 +1649,9 @@
         }
 
 
-        function logWeight() {
-            const date = document.getElementById('weight-date').value;
-            const weight = parseFloat(document.getElementById('weight-lbs').value);
-            const bf = parseFloat(document.getElementById('weight-bf').value);
-            const visceral = parseFloat(document.getElementById('weight-visceral').value);
-
-            if (!date || !weight) {
-                showMessage('weight-message', 'error', 'Date and weight required');
-                return;
-            }
-
+        // Shared core: merge a body-composition entry by date, then persist + refresh.
+        function saveBodyComp(date, weight, bf, visceral) {
             appData.ouraApiData = appData.ouraApiData || [];
-
-            // Check if entry for this date exists
             const existing = appData.ouraApiData.find(o => o.date === date);
             if (existing) {
                 existing.weight = weight;
@@ -1662,19 +1670,50 @@
                     activity: 0
                 });
             }
-
             appData.ouraApiData.sort((a, b) => new Date(b.date) - new Date(a.date));
             flagNewPRs();
             saveData(appData);
             updateStats();
             renderOuraApiTable();
+        }
 
+        function logWeight() {
+            const date = document.getElementById('weight-date').value;
+            const weight = parseFloat(document.getElementById('weight-lbs').value);
+            const bf = parseFloat(document.getElementById('weight-bf').value);
+            const visceral = parseFloat(document.getElementById('weight-visceral').value);
+
+            if (!date || !weight) {
+                showMessage('weight-message', 'error', 'Date and weight required');
+                return;
+            }
+            saveBodyComp(date, weight, bf, visceral);
             showMessage('weight-message', 'success', `✓ Weight logged: ${weight} lbs${bf ? `, ${bf}% BF` : ''}`);
-            
+
             // Clear form
             document.getElementById('weight-lbs').value = '';
             document.getElementById('weight-bf').value = '';
             document.getElementById('weight-visceral').value = '';
+        }
+
+        // Dashboard quick-entry modal — log body comp without leaving the Dashboard.
+        function openWeightModal() {
+            document.getElementById('qw-date').value = todayStr();
+            ['qw-weight', 'qw-bf', 'qw-visceral'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('qw-message').innerHTML = '';
+            document.getElementById('weight-modal').style.display = 'flex';
+            setTimeout(() => document.getElementById('qw-weight').focus(), 60);
+        }
+        function closeWeightModal() { document.getElementById('weight-modal').style.display = 'none'; }
+        function logWeightFromModal() {
+            const date = document.getElementById('qw-date').value;
+            const weight = parseFloat(document.getElementById('qw-weight').value);
+            const bf = parseFloat(document.getElementById('qw-bf').value);
+            const visceral = parseFloat(document.getElementById('qw-visceral').value);
+            if (!date || !weight) { showMessage('qw-message', 'error', 'Date and weight required'); return; }
+            saveBodyComp(date, weight, bf, visceral);
+            showMessage('qw-message', 'success', `✓ Logged: ${weight} lbs${bf ? `, ${bf}% BF` : ''}`);
+            setTimeout(closeWeightModal, 850);
         }
 
         function logOuraDataManual() {
@@ -4170,7 +4209,7 @@
                 <button class="btn-secondary" onclick="${f.activeStart ? 'endFast()' : 'startFast()'}"><i class="ti ${f.activeStart ? 'ti-player-stop' : 'ti-player-play'}" style="margin-right:6px;"></i>${f.activeStart ? 'End fast' : 'Start fast'}</button>
                 <button class="btn-secondary" onclick="switchTab('cardio')"><i class="ti ti-run" style="margin-right:6px;"></i>Log cardio</button>
                 <button class="btn-secondary" onclick="switchTab('golf')"><i class="ti ti-golf" style="margin-right:6px;"></i>Log round</button>
-                <button class="btn-secondary" onclick="switchTab('oura')"><i class="ti ti-scale" style="margin-right:6px;"></i>Log weight</button>
+                <button class="btn-secondary" onclick="openWeightModal()"><i class="ti ti-scale" style="margin-right:6px;"></i>Log weight</button>
                 <button class="btn-secondary" onclick="switchTab('reading')"><i class="ti ti-book" style="margin-right:6px;"></i>Reading</button>`;
         }
 
