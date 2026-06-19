@@ -890,6 +890,11 @@
             </div>
 
             <div class="section">
+                <div class="section-title"><div class="section-icon"><i class="ti ti-history"></i></div>Body Composition History</div>
+                <table class="data-table"><thead><tr><th>Date</th><th>Weight</th><th>Body Fat %</th><th>Visceral</th><th>Action</th></tr></thead><tbody id="bodycomp-history"></tbody></table>
+            </div>
+
+            <div class="section">
                 <div class="section-title">
                     <div class="section-icon"><i class="ti ti-table"></i></div>
                     Auto-Synced Oura Data
@@ -1777,6 +1782,7 @@
                 }
                 tbody.appendChild(row);
             });
+            renderBodyCompTable();
         }
         function editOuraRow(date) { ouraEditDate = date; renderOuraApiTable(); }
         function cancelOuraRow() { ouraEditDate = null; renderOuraApiTable(); }
@@ -1797,6 +1803,54 @@
             if (!confirm('Delete the Oura entry for ' + date + '?')) return;
             appData.ouraApiData = (appData.ouraApiData || []).filter(x => x.date !== date);
             saveData(appData);
+            renderOuraApiTable();
+            updateStats();
+        }
+
+        // ----- Body composition history (weight / body fat / visceral) -----
+        let bodyEditDate = null;
+        function renderBodyCompTable() {
+            const tbody = document.getElementById('bodycomp-history');
+            if (!tbody) return;
+            const rows = (appData.ouraApiData || []).filter(o => o.weight > 0 || o.bodyFat > 0 || o.visceral > 0).slice().sort((a, b) => b.date.localeCompare(a.date));
+            tbody.innerHTML = '';
+            rows.forEach(o => {
+                const row = document.createElement('tr');
+                if (o.date === bodyEditDate) {
+                    const ni = (f, v) => `<input id="body-edit-${f}" type="number" step="0.1" value="${v || ''}" style="width:72px; background:var(--bg-hover); border:1px solid var(--accent); color:var(--text-primary); border-radius:4px; padding:4px 6px;">`;
+                    row.innerHTML = `<td>${o.date}</td><td>${ni('weight', o.weight)}</td><td>${ni('bodyFat', o.bodyFat)}</td><td>${ni('visceral', o.visceral)}</td><td style="white-space:nowrap;">${actionBtn(`saveBodyRow('${o.date}')`, 'ti-check', 'Save', 'var(--success)')}${actionBtn('cancelBodyRow()', 'ti-x', 'Cancel')}</td>`;
+                } else {
+                    row.innerHTML = `<td>${o.date}</td><td class="data-value">${o.weight > 0 ? o.weight.toFixed(1) : '—'}</td><td class="data-value">${o.bodyFat > 0 ? o.bodyFat.toFixed(1) + '%' : '—'}</td><td class="data-value">${o.visceral > 0 ? o.visceral.toFixed(1) : '—'}</td><td style="white-space:nowrap;">${actionBtn(`editBodyRow('${o.date}')`, 'ti-pencil', 'Edit')}<button class="delete-btn" onclick="deleteBodyRow('${o.date}')">Delete</button></td>`;
+                }
+                tbody.appendChild(row);
+            });
+        }
+        function editBodyRow(d) { bodyEditDate = d; renderBodyCompTable(); }
+        function cancelBodyRow() { bodyEditDate = null; renderBodyCompTable(); }
+        function saveBodyRow(date) {
+            const o = (appData.ouraApiData || []).find(x => x.date === date);
+            if (o) {
+                o.weight = parseFloat(document.getElementById('body-edit-weight').value) || 0;
+                o.bodyFat = parseFloat(document.getElementById('body-edit-bodyFat').value) || 0;
+                o.visceral = parseFloat(document.getElementById('body-edit-visceral').value) || 0;
+                saveData(appData);
+            }
+            bodyEditDate = null;
+            renderBodyCompTable();
+            updateStats();
+        }
+        function deleteBodyRow(date) {
+            if (!confirm('Delete body-composition entry for ' + date + '?')) return;
+            const o = (appData.ouraApiData || []).find(x => x.date === date);
+            if (o) {
+                o.weight = 0; o.bodyFat = 0; o.visceral = 0;
+                if (!(o.sleepScore > 0 || o.hrv > 0 || o.readiness > 0 || o.activity > 0 || o.sleepDuration > 0)) {
+                    appData.ouraApiData = appData.ouraApiData.filter(x => x.date !== date);
+                }
+                saveData(appData);
+            }
+            bodyEditDate = null;
+            renderBodyCompTable();
             renderOuraApiTable();
             updateStats();
         }
@@ -2521,27 +2575,71 @@
             }
         }
 
+        // Shared edit-table helpers
+        function actionBtn(onclick, icon, title, color) {
+            return `<button onclick="${onclick}" title="${title}" style="background:var(--bg-hover); border:1px solid var(--border); color:${color || 'var(--text-secondary)'}; border-radius:6px; padding:5px 9px; cursor:pointer; margin-right:6px; font-size:14px; vertical-align:middle;"><i class="ti ${icon}"></i></button>`;
+        }
+        function toLocalInput(iso) {
+            if (!iso) return '';
+            const d = new Date(iso), p = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+        }
+        const CARDIO_TYPES = [['peloton', 'Peloton'], ['indoor-soccer', 'Indoor Soccer'], ['basketball-coaching', 'Basketball (Coaching)'], ['tennis', 'Tennis'], ['golf-walking', 'Golf (Walking)'], ['golf-cart', 'Golf (Cart)'], ['swimming', 'Swimming'], ['hiking', 'Hiking'], ['elliptical', 'Elliptical']];
+
+        let golfEditIdx = null;
         function renderAllGolfTable() {
             const tbody = document.getElementById('all-golf-table');
             tbody.innerHTML = '';
-
             appData.golf.slice(0, 30).forEach((g, idx) => {
                 const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${g.date}</td>
-                    <td>${g.course || '—'}</td>
-                    <td class="data-value">${g.score || '—'}</td>
-                    <td>${g.vsPar ? (g.vsPar > 0 ? '+' : '') + g.vsPar : '—'}</td>
-                    <td>${g.handicap > 0 ? g.handicap.toFixed(1) : '—'}</td>
-                    <td>${g.girPct > 0 ? g.girPct + '%' : '—'}</td>
-                    <td>${g.accuracy > 0 ? g.accuracy + '%' : '—'}</td>
-                    <td>${g.putts > 0 ? g.putts : '—'}</td>
-                    <td><button class="delete-btn" onclick="deleteGolf(${idx})">Delete</button></td>
-                `;
+                if (idx === golfEditIdx) {
+                    const ni = (f, v, step) => `<input id="golf-edit-${f}" type="number"${step ? ` step="${step}"` : ''} value="${v || ''}" style="width:58px; background:var(--bg-hover); border:1px solid var(--accent); color:var(--text-primary); border-radius:4px; padding:4px 6px;">`;
+                    row.innerHTML = `
+                        <td>${g.date}</td>
+                        <td><input id="golf-edit-course" type="text" value="${(g.course || '').replace(/"/g, '&quot;')}" style="width:130px; background:var(--bg-hover); border:1px solid var(--accent); color:var(--text-primary); border-radius:4px; padding:4px 6px;"></td>
+                        <td>${ni('score', g.score)}</td>
+                        <td>—</td>
+                        <td>${g.handicap > 0 ? g.handicap.toFixed(1) : '—'}</td>
+                        <td>${ni('girPct', g.girPct)}</td>
+                        <td>${ni('accuracy', g.accuracy)}</td>
+                        <td>${ni('putts', g.putts)}</td>
+                        <td style="white-space:nowrap;">${actionBtn(`saveGolfRow(${idx})`, 'ti-check', 'Save', 'var(--success)')}${actionBtn('cancelGolfRow()', 'ti-x', 'Cancel')}</td>
+                    `;
+                } else {
+                    row.innerHTML = `
+                        <td>${g.date}</td>
+                        <td>${g.course || '—'}</td>
+                        <td class="data-value">${g.score || '—'}</td>
+                        <td>${g.vsPar ? (g.vsPar > 0 ? '+' : '') + g.vsPar : '—'}</td>
+                        <td>${g.handicap > 0 ? g.handicap.toFixed(1) : '—'}</td>
+                        <td>${g.girPct > 0 ? g.girPct + '%' : '—'}</td>
+                        <td>${g.accuracy > 0 ? g.accuracy + '%' : '—'}</td>
+                        <td>${g.putts > 0 ? g.putts : '—'}</td>
+                        <td style="white-space:nowrap;">${actionBtn(`editGolfRow(${idx})`, 'ti-pencil', 'Edit')}<button class="delete-btn" onclick="deleteGolf(${idx})">Delete</button></td>
+                    `;
+                }
                 tbody.appendChild(row);
             });
             refreshCourseList();
             updateHandicapDisplay();
+        }
+        function editGolfRow(idx) { golfEditIdx = idx; renderAllGolfTable(); }
+        function cancelGolfRow() { golfEditIdx = null; renderAllGolfTable(); }
+        function saveGolfRow(idx) {
+            const g = appData.golf[idx];
+            if (g) {
+                g.course = document.getElementById('golf-edit-course').value.trim();
+                g.score = parseFloat(document.getElementById('golf-edit-score').value) || 0;
+                g.girPct = parseFloat(document.getElementById('golf-edit-girPct').value) || 0;
+                g.accuracy = parseFloat(document.getElementById('golf-edit-accuracy').value) || 0;
+                g.putts = parseFloat(document.getElementById('golf-edit-putts').value) || 0;
+                g.vsPar = g.score - (g.par || 72);
+                g.differential = roundDifferential(g);
+                saveData(appData);
+            }
+            golfEditIdx = null;
+            renderAllGolfTable();
+            updateStats();
         }
 
         function deleteGolf(idx) {
@@ -2907,24 +3005,54 @@
         }
 
         // ============ CARDIO HISTORY ============
+        let cardioEditIdx = null;
         function renderCardioHistory() {
             const tbody = document.getElementById('cardio-history');
             if (!tbody) return; // Only render if the element exists
-
             tbody.innerHTML = '';
             appData.cardio.forEach((c, idx) => {
                 const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${c.date}</td>
-                    <td>${c.type}</td>
-                    <td class="data-value">${c.duration}</td>
-                    <td class="data-value">${c.distance || '—'}</td>
-                    <td class="data-value">${c.intensity || '—'}</td>
-                    <td class="data-value">${c.calories || '—'}</td>
-                    <td><button class="delete-btn" onclick="deleteCardio(${idx})">Delete</button></td>
-                `;
+                if (idx === cardioEditIdx) {
+                    const ni = (f, v, step) => `<input id="cardio-edit-${f}" type="number"${step ? ` step="${step}"` : ''} value="${v || ''}" style="width:60px; background:var(--bg-hover); border:1px solid var(--accent); color:var(--text-primary); border-radius:4px; padding:4px 6px;">`;
+                    const typeSel = `<select id="cardio-edit-type" style="background:var(--bg-hover); border:1px solid var(--accent); color:var(--text-primary); border-radius:4px; padding:4px 6px;">${CARDIO_TYPES.map(t => `<option value="${t[0]}"${c.type === t[0] ? ' selected' : ''}>${t[1]}</option>`).join('')}</select>`;
+                    row.innerHTML = `
+                        <td>${c.date}</td>
+                        <td>${typeSel}</td>
+                        <td>${ni('duration', c.duration)}</td>
+                        <td>${ni('distance', c.distance, '0.1')}</td>
+                        <td>${ni('intensity', c.intensity)}</td>
+                        <td>${ni('calories', c.calories)}</td>
+                        <td style="white-space:nowrap;">${actionBtn(`saveCardioRow(${idx})`, 'ti-check', 'Save', 'var(--success)')}${actionBtn('cancelCardioRow()', 'ti-x', 'Cancel')}</td>
+                    `;
+                } else {
+                    row.innerHTML = `
+                        <td>${c.date}</td>
+                        <td>${c.type}</td>
+                        <td class="data-value">${c.duration}</td>
+                        <td class="data-value">${c.distance || '—'}</td>
+                        <td class="data-value">${c.intensity || '—'}</td>
+                        <td class="data-value">${c.calories || '—'}</td>
+                        <td style="white-space:nowrap;">${actionBtn(`editCardioRow(${idx})`, 'ti-pencil', 'Edit')}<button class="delete-btn" onclick="deleteCardio(${idx})">Delete</button></td>
+                    `;
+                }
                 tbody.appendChild(row);
             });
+        }
+        function editCardioRow(idx) { cardioEditIdx = idx; renderCardioHistory(); }
+        function cancelCardioRow() { cardioEditIdx = null; renderCardioHistory(); }
+        function saveCardioRow(idx) {
+            const c = appData.cardio[idx];
+            if (c) {
+                c.type = document.getElementById('cardio-edit-type').value;
+                c.duration = parseFloat(document.getElementById('cardio-edit-duration').value) || 0;
+                c.distance = parseFloat(document.getElementById('cardio-edit-distance').value) || 0;
+                c.intensity = parseFloat(document.getElementById('cardio-edit-intensity').value) || 0;
+                c.calories = parseFloat(document.getElementById('cardio-edit-calories').value) || 0;
+                saveData(appData);
+            }
+            cardioEditIdx = null;
+            renderCardioHistory();
+            updateStats();
         }
 
         function deleteCardio(idx) {
@@ -3901,10 +4029,36 @@
                 }
             }
             const hist = document.getElementById('fasting-history');
-            if (hist) hist.innerHTML = (f.log || []).slice(0, 30).map((l, i) =>
-                `<tr><td>${l.date}</td><td class="data-value">${l.hours}h</td><td>${l.type}</td><td>${l.hours >= (l.goal || f.goalHours) ? '<span style="color:var(--success);">✓</span>' : '—'}</td><td><button class="delete-btn" onclick="deleteFast(${i})">Delete</button></td></tr>`
-            ).join('');
+            if (hist) hist.innerHTML = (f.log || []).slice(0, 30).map((l, i) => {
+                if (i === fastEditIdx) {
+                    const di = (id, val) => `<input id="${id}" type="datetime-local" value="${toLocalInput(val)}" style="background:var(--bg-hover); border:1px solid var(--accent); color:var(--text-primary); border-radius:4px; padding:4px 6px;">`;
+                    return `<tr><td>${di('fast-edit-start', l.start)}</td><td>${di('fast-edit-end', l.end)}</td><td>—</td><td>${l.goal || f.goalHours}h</td><td style="white-space:nowrap;">${actionBtn(`saveFastRow(${i})`, 'ti-check', 'Save', 'var(--success)')}${actionBtn('cancelFastRow()', 'ti-x', 'Cancel')}</td></tr>`;
+                }
+                return `<tr><td>${l.date}</td><td class="data-value">${l.hours}h</td><td>${l.type}</td><td>${l.hours >= (l.goal || f.goalHours) ? '<span style="color:var(--success);">✓</span>' : '—'}</td><td style="white-space:nowrap;">${actionBtn(`editFastRow(${i})`, 'ti-pencil', 'Edit')}<button class="delete-btn" onclick="deleteFast(${i})">Delete</button></td></tr>`;
+            }).join('');
             updateStats();
+        }
+        let fastEditIdx = null;
+        function editFastRow(i) { fastEditIdx = i; renderFasting(); }
+        function cancelFastRow() { fastEditIdx = null; renderFasting(); }
+        function saveFastRow(i) {
+            const f = ensureFasting(), l = f.log[i];
+            const sv = document.getElementById('fast-edit-start').value;
+            const ev = document.getElementById('fast-edit-end').value;
+            if (l && sv && ev) {
+                const start = new Date(sv), end = new Date(ev);
+                if (end > start) {
+                    l.start = start.toISOString();
+                    l.end = end.toISOString();
+                    l.date = start.toISOString().slice(0, 10);
+                    l.hours = Math.round((end - start) / 3600000 * 10) / 10;
+                    l.type = l.hours >= 24 ? 'Prolonged' : 'Intermittent';
+                    f.log.sort((a, b) => new Date(b.start || b.date) - new Date(a.start || a.date));
+                    saveData(appData);
+                }
+            }
+            fastEditIdx = null;
+            renderFasting();
         }
 
         // ============ DASHBOARD QUICK ACTIONS + JOURNALING ============
