@@ -960,6 +960,16 @@
                 .ex-main { display:flex; justify-content:space-between; align-items:flex-start; }
                 .ex-info { flex:1; min-width:0; }
                 .ex-controls { display:flex; gap:8px; margin-left:12px; align-items:center; }
+                .sets-toggle { background:var(--bg-hover); border:1px solid var(--border); color:var(--text-primary); border-radius:6px; padding:6px 10px; font-size:12px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+                .sets-toggle:hover { border-color:var(--accent); }
+                .ex-sets { margin-top:12px; padding-top:12px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:8px; }
+                .set-row { display:flex; align-items:center; gap:10px; }
+                .set-lbl { font-weight:700; font-size:13px; color:var(--text-primary); width:46px; flex-shrink:0; }
+                .set-reps { font-size:12px; color:var(--text-secondary); min-width:60px; flex-shrink:0; }
+                .set-weight { flex:1; min-width:0; background:var(--bg-card); border:1px solid var(--border); border-radius:6px; padding:9px 10px; color:var(--text-primary); font-size:14px; }
+                .set-weight:disabled { opacity:.45; }
+                .set-bw { flex-shrink:0; padding:9px 14px; border-radius:6px; border:1px solid var(--border); background:var(--bg-hover); color:var(--text-secondary); font-size:12px; font-weight:700; cursor:pointer; }
+                .set-bw.active { background:var(--grad); color:#fff; border-color:transparent; }
                 /* iPhone: stack name above a full-width controls row so the name has room */
                 @media (max-width:480px) {
                     .exercise-row { padding:14px; }
@@ -2240,7 +2250,8 @@
                     note: t.note || '', cat: t.cat || '',
                     weight: old.weight || 0,
                     actualRpe: (old.actualRpe != null ? old.actualRpe : null),
-                    completed: !!old.completed
+                    completed: !!old.completed,
+                    setLogs: Array.isArray(old.setLogs) ? old.setLogs : undefined
                 };
             });
         }
@@ -2316,11 +2327,16 @@
                 // left edge color = movement category (consistent legend across every workout)
                 const rowColor = categoryColor(ex);
                 const ssOptions = ['', 'A', 'B', 'C', 'D', 'E'].map(g => `<option value="${g}"${group === g ? ' selected' : ''}>${g ? 'SS ' + g : 'SS —'}</option>`).join('');
+                ensureSetLogs(ex);
+                const expanded = expandedExercises.has(exKey(dayKey, idx));
+                const loggedSets = ex.setLogs.filter(s => s.weight > 0);
+                const allBW = ex.setLogs.length > 0 && ex.setLogs.every(s => s.bw);
+                const setSummary = loggedSets.length ? Math.max(...loggedSets.map(s => s.weight)) + ' lb' : (allBW ? 'BW' : 'Log sets');
 
                 html += `
                     <div class="exercise-row ${ex.completed ? 'completed' : ''}" style="border-left:4px solid ${rowColor};">
                         <div class="ex-main">
-                            <div class="ex-info">
+                            <div class="ex-info" onclick="toggleExerciseExpand('${dayKey}', ${idx})" style="cursor:pointer;">
                                 <div class="exercise-name">${ex.name}${group ? `<span style="background:var(--bg-hover); color:var(--text-secondary); border:1px solid var(--border); font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; margin-left:8px; vertical-align:middle; white-space:nowrap;">SS ${group}</span>` : ''}</div>
                                 <div class="exercise-details">
                                     ${ex.sets}x${ex.reps} · RPE ${ex.rpe}
@@ -2335,18 +2351,22 @@
                             </div>
                             <div class="ex-controls">
                                 <select onchange="setSuperset('${dayKey}', ${idx}, this.value)" title="Superset group" style="background:var(--bg-hover); border:1px solid var(--border); color:var(--text-primary); border-radius:6px; padding:6px; font-size:12px;">${ssOptions}</select>
-                                ${isWeight ? `
-                                    <input type="number" class="exercise-weight-input"
-                                        value="${ex.weight || ''}"
-                                        placeholder="${suggestion ? suggestion.weight : 'lbs'}"
-                                        onchange="updateExerciseWeight('${dayKey}', ${idx}, this.value)">
-                                ` : ''}
+                                <button class="sets-toggle" onclick="toggleExerciseExpand('${dayKey}', ${idx})" title="Log each set">${setSummary} <i class="ti ti-chevron-${expanded ? 'up' : 'down'}"></i></button>
                                 <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;"
                                     onclick="toggleExerciseComplete('${dayKey}', ${idx})">
                                     ${ex.completed ? '✓' : 'Done'}
                                 </button>
                             </div>
                         </div>
+                        ${expanded ? `<div class="ex-sets">
+                            ${ex.setLogs.map((s, si) => `
+                                <div class="set-row">
+                                    <span class="set-lbl">Set ${si + 1}</span>
+                                    <span class="set-reps">${ex.reps}</span>
+                                    <input type="number" inputmode="decimal" class="set-weight" value="${s.weight || ''}" placeholder="${s.bw ? 'bodyweight' : 'lbs'}" ${s.bw ? 'disabled' : ''} onchange="updateSetWeight('${dayKey}', ${idx}, ${si}, this.value)">
+                                    <button class="set-bw ${s.bw ? 'active' : ''}" onclick="toggleSetBW('${dayKey}', ${idx}, ${si})" title="Bodyweight set">BW</button>
+                                </div>`).join('')}
+                        </div>` : ''}
                     </div>
                 `;
             });
@@ -2370,6 +2390,49 @@
             appData.currentWeek.days[dayKey].exercises[exIdx].weight = parseFloat(weight) || 0;
             flagNewPRs();
             saveData(appData);
+        }
+
+        // ----- Per-set logging (expand an exercise to enter weight for each set; bodyweight option) -----
+        let expandedExercises = new Set();
+        function exKey(dayKey, idx) { return dayKey + ':' + idx; }
+        // Make sure ex.setLogs has one {weight,bw} entry per set; seed from the legacy single weight.
+        function ensureSetLogs(ex) {
+            const n = Math.max(1, parseInt(ex.sets, 10) || 1);
+            if (!Array.isArray(ex.setLogs)) ex.setLogs = [];
+            while (ex.setLogs.length < n) ex.setLogs.push({ weight: 0, bw: !!ex.bodyweight });
+            if (ex.setLogs.length > n) ex.setLogs.length = n;
+            ex.setLogs.forEach(s => { if (typeof s.weight !== 'number') s.weight = parseFloat(s.weight) || 0; s.bw = !!s.bw; });
+            if (ex.weight > 0 && ex.setLogs.every(s => !s.weight && !s.bw)) ex.setLogs.forEach(s => s.weight = ex.weight);
+            return ex.setLogs;
+        }
+        // Top working-set weight drives progression + PRs (keeps ex.weight meaningful).
+        function syncExWeight(ex) {
+            const ws = (ex.setLogs || []).filter(s => !s.bw).map(s => s.weight || 0);
+            ex.weight = ws.length ? Math.max(...ws) : 0;
+        }
+        function toggleExerciseExpand(dayKey, idx) {
+            const k = exKey(dayKey, idx);
+            if (expandedExercises.has(k)) expandedExercises.delete(k); else expandedExercises.add(k);
+            renderWorkout(parseInt(dayKey.replace('day', ''), 10));
+        }
+        function updateSetWeight(dayKey, idx, setIdx, val) {
+            const ex = appData.currentWeek.days[dayKey].exercises[idx]; if (!ex) return;
+            ensureSetLogs(ex);
+            ex.setLogs[setIdx].weight = parseFloat(val) || 0;
+            if (ex.setLogs[setIdx].weight > 0) ex.setLogs[setIdx].bw = false;
+            syncExWeight(ex);
+            flagNewPRs();
+            saveData(appData);   // no re-render — keeps input focus while tabbing between sets
+        }
+        function toggleSetBW(dayKey, idx, setIdx) {
+            const ex = appData.currentWeek.days[dayKey].exercises[idx]; if (!ex) return;
+            ensureSetLogs(ex);
+            const s = ex.setLogs[setIdx];
+            s.bw = !s.bw;
+            if (s.bw) s.weight = 0;
+            syncExWeight(ex);
+            saveData(appData);
+            renderWorkout(parseInt(dayKey.replace('day', ''), 10));
         }
 
         function toggleExerciseComplete(dayKey, exIdx) {
