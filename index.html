@@ -3453,19 +3453,22 @@
                 }
             }
 
-            const sleepNights = appData.ouraApiData.filter(o => o.sleepScore > 0);
+            // newest-first; sort defensively in case cloud data arrived unsorted
+            const sleepNights = appData.ouraApiData.filter(o => o.sleepScore > 0).slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
             const sleepChangeEl = document.getElementById('sleep-change');
+            const avg = arr => arr.reduce((s, o) => s + o.sleepScore, 0) / arr.length;
             if (sleepNights.length > 0) {
-                const avgSleep = sleepNights.reduce((sum, o) => sum + o.sleepScore, 0) / sleepNights.length;
-                document.getElementById('sleep-score').textContent = avgSleep.toFixed(0);
-                const q = avgSleep >= 85 ? 'Optimal recovery' : avgSleep >= 70 ? 'Good recovery' : 'Pay attention';
-                sleepChangeEl.textContent = q;
-                sleepChangeEl.style.color = avgSleep >= 70 ? 'var(--success)' : avgSleep >= 60 ? 'var(--warning)' : 'var(--accent-power)';
-                if (sleepNights.length >= 4) {   // newest-first: recent 3 vs prior 3
-                    const recent = sleepNights.slice(0, 3).reduce((s, o) => s + o.sleepScore, 0) / 3;
-                    const prior = sleepNights.slice(3, 6);
-                    const priorAvg = prior.reduce((s, o) => s + o.sleepScore, 0) / prior.length;
-                    trendArrow('sleep-arrow', recent > priorAvg ? 'up' : recent < priorAvg ? 'down' : null, recent >= priorAvg);
+                const recent = sleepNights.slice(0, 7);              // last 7 nights
+                const recentAvg = avg(recent);
+                document.getElementById('sleep-score').textContent = recentAvg.toFixed(0);
+                const nightsWord = recent.length === 1 ? 'last night' : `${recent.length}-night avg`;
+                const q = recentAvg >= 85 ? 'Optimal recovery' : recentAvg >= 70 ? 'Good recovery' : 'Pay attention';
+                sleepChangeEl.textContent = `${q} · ${nightsWord}`;
+                sleepChangeEl.style.color = recentAvg >= 70 ? 'var(--success)' : recentAvg >= 60 ? 'var(--warning)' : 'var(--accent-power)';
+                const prior = sleepNights.slice(7, 14);              // the 7 nights before that
+                if (recent.length >= 3 && prior.length >= 3) {       // last-7 vs prior-7 (same window as the number)
+                    const priorAvg = avg(prior);
+                    trendArrow('sleep-arrow', recentAvg > priorAvg ? 'up' : recentAvg < priorAvg ? 'down' : null, recentAvg >= priorAvg);
                 } else trendArrow('sleep-arrow', null);
             } else {
                 document.getElementById('sleep-score').textContent = '—';
