@@ -625,6 +625,17 @@
                     <a href="https://cloud.ouraring.com/personal-access-tokens" target="_blank" style="color:var(--primary); text-decoration:none; font-size:12px;">Get Token</a>
                 </div>
                 <div id="oura-message" style="margin-top:12px;"></div>
+
+                <div style="font-family:'Space Grotesk', sans-serif; font-weight:600; color:var(--text-primary); margin:22px 0 8px; font-size:16px; border-top:1px solid var(--border); padding-top:18px;">Backup &amp; Restore</div>
+                <div class="info-box" style="margin-bottom:16px;">
+                    Download a full backup of all your data as a file, or restore from one. Restoring <strong>merges</strong> the backup into your current data — nothing is overwritten or lost.
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <button class="btn-primary" onclick="exportBackup()"><i class="ti ti-download" style="margin-right:6px;"></i>Export backup</button>
+                    <button class="btn-secondary" onclick="document.getElementById('import-file').click()"><i class="ti ti-upload" style="margin-right:6px;"></i>Import backup</button>
+                    <input type="file" id="import-file" accept=".json,application/json" style="display:none" onchange="importBackup(this)">
+                </div>
+                <div id="backup-message" style="margin-top:12px;"></div>
             </div>
         </div>
 
@@ -667,6 +678,75 @@
                 </div>
                 <button class="btn-primary" onclick="logWeightFromModal()" style="margin-top:16px; width:100%;">Save</button>
                 <div id="qw-message" style="margin-top:12px;"></div>
+            </div>
+        </div>
+
+        <div id="cardio-modal" class="seg-modal" onclick="if(event.target===this)closeCardioModal()">
+            <div class="seg-modal-card" style="max-width:560px;">
+                <div class="seg-modal-head">
+                    <div class="seg-title"><span class="section-icon"><i class="ti ti-run"></i></span>Log Cardio</div>
+                    <button class="seg-close" onclick="closeCardioModal()" aria-label="Close"><i class="ti ti-x"></i></button>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Date</label><input type="date" id="qc-date"></div>
+                    <div class="form-group"><label>Type</label>
+                        <select id="qc-type" onchange="onQcType()">
+                            <option value="peloton">Peloton</option>
+                            <option value="indoor-soccer">Indoor Soccer</option>
+                            <option value="basketball-coaching">Basketball (Coaching)</option>
+                            <option value="tennis">Tennis</option>
+                            <option value="golf-walking">Golf (Walking)</option>
+                            <option value="golf-cart">Golf (Cart)</option>
+                            <option value="swimming">Swimming</option>
+                            <option value="hiking">Hiking</option>
+                            <option value="elliptical">Elliptical</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Duration (min)</label><input type="number" id="qc-duration" placeholder="35"></div>
+                    <div class="form-group"><label>Intensity (1-10)</label><input type="number" id="qc-intensity" min="1" max="10" placeholder="7"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Distance (miles)</label><input type="number" id="qc-distance" step="0.1" placeholder="5"></div>
+                    <div class="form-group"><label>Calories (opt.)</label><input type="number" id="qc-calories" placeholder="400"></div>
+                    <div class="form-group" id="qc-output-group"><label>Peloton Output (opt.)</label><input type="number" id="qc-output" placeholder="200"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>How did you feel?</label>
+                        <select id="qc-feel"><option value="">Select…</option><option>Great</option><option>Good</option><option>Average</option><option>Tired</option><option>Drained</option></select>
+                    </div>
+                    <div class="form-group"><label>Energy Level</label>
+                        <select id="qc-energy"><option value="">Select…</option><option>Very high</option><option>High</option><option>Moderate</option><option>Low</option><option>Very low</option></select>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="logCardioFromModal()" style="margin-top:16px; width:100%;">Save</button>
+                <div id="qc-message" style="margin-top:12px;"></div>
+            </div>
+        </div>
+
+        <div id="golf-modal" class="seg-modal" onclick="if(event.target===this)closeGolfModal()">
+            <div class="seg-modal-card" style="max-width:560px;">
+                <div class="seg-modal-head">
+                    <div class="seg-title"><span class="section-icon"><i class="ti ti-golf"></i></span>Log Round</div>
+                    <button class="seg-close" onclick="closeGolfModal()" aria-label="Close"><i class="ti ti-x"></i></button>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Date</label><input type="date" id="qg-date"></div>
+                    <div class="form-group"><label>Course</label><input type="text" id="qg-course" placeholder="Course name"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>Score</label><input type="number" id="qg-score" placeholder="78"></div>
+                    <div class="form-group"><label>Par</label><input type="number" id="qg-par" placeholder="72"></div>
+                    <div class="form-group"><label>Putts (opt.)</label><input type="number" id="qg-putts" placeholder="32"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>GIR % (opt.)</label><input type="number" id="qg-gir" min="0" max="100" placeholder="56"></div>
+                    <div class="form-group"><label>Fairways % (opt.)</label><input type="number" id="qg-accuracy" min="0" max="100" placeholder="64"></div>
+                </div>
+                <div style="font-size:11px; color:var(--text-secondary); margin-top:10px;">Need course rating/slope, weather, or swing notes? Use the full form on the Golf tab.</div>
+                <button class="btn-primary" onclick="logGolfFromModal()" style="margin-top:14px; width:100%;">Save</button>
+                <div id="qg-message" style="margin-top:12px;"></div>
             </div>
         </div>
         <style>
@@ -1464,6 +1544,15 @@
 
         function saveLocal(data) {
             localStorage.setItem('golfUltimateData', JSON.stringify(data));
+        }
+
+        // Keep a rolling local copy of the last-known-good data before any cloud reconcile,
+        // so a bad sync is always recoverable from this device.
+        function stashLocalBackup() {
+            try {
+                const cur = localStorage.getItem('golfUltimateData');
+                if (cur) localStorage.setItem('golfUltimateData_backup', cur);
+            } catch (e) { /* storage full / unavailable — non-fatal */ }
         }
 
         function saveData(data) {
@@ -2295,6 +2384,60 @@
         function renderStrengthHistory() {
             // This function kept for compatibility but not used in new system
         }
+
+        // Shared core: build + persist a golf round (computes vsPar, differential, WHS index).
+        function saveGolfRound(e) {
+            const par = e.par || 72;
+            const round = {
+                date: e.date, course: e.course, location: e.location || '',
+                rating: e.rating || 0, slope: e.slope || 0, score: e.score, par,
+                vsPar: e.score - par, putts: e.putts || 0, girPct: e.girPct || 0,
+                accuracy: e.accuracy || 0, weather: e.weather || '', condition: e.condition || '',
+                energy: e.energy || 0, roundType: e.roundType || '', notes: e.notes || '',
+                play: e.play || '', temp: e.temp || 0,
+                swingImprovements: e.swingImprovements || [], struggles: e.struggles || [],
+                lat: (e.lat != null ? e.lat : null), lon: (e.lon != null ? e.lon : null),
+                source: e.source || 'grint'
+            };
+            round.differential = roundDifferential(round);
+            appData.golf.push(round);
+            appData.golf.sort((a, b) => new Date(b.date) - new Date(a.date));
+            const idx = computeHandicapIndex(appData.golf);   // WHS index incl. this round
+            round.handicap = idx;
+            round.hcpIndex = idx;
+            flagNewPRs();
+            saveData(appData);
+            renderAllGolfTable();
+            updateStats();
+            return round;
+        }
+
+        // Dashboard quick-entry: golf round (core fields; full detail + course search on the Golf tab)
+        function openGolfModal() {
+            document.getElementById('qg-date').value = todayStr();
+            ['qg-course', 'qg-score', 'qg-par', 'qg-putts', 'qg-gir', 'qg-accuracy'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('qg-par').value = '72';
+            document.getElementById('qg-message').innerHTML = '';
+            document.getElementById('golf-modal').style.display = 'flex';
+            setTimeout(() => document.getElementById('qg-course').focus(), 60);
+        }
+        function closeGolfModal() { document.getElementById('golf-modal').style.display = 'none'; }
+        function logGolfFromModal() {
+            const date = document.getElementById('qg-date').value;
+            const course = document.getElementById('qg-course').value.trim();
+            const score = parseFloat(document.getElementById('qg-score').value);
+            if (!date || !course || !score) { showMessage('qg-message', 'error', 'Date, course, and score required'); return; }
+            saveGolfRound({
+                date, course, score,
+                par: parseFloat(document.getElementById('qg-par').value) || 72,
+                putts: parseFloat(document.getElementById('qg-putts').value) || 0,
+                girPct: parseFloat(document.getElementById('qg-gir').value) || 0,
+                accuracy: parseFloat(document.getElementById('qg-accuracy').value) || 0
+            });
+            showMessage('qg-message', 'success', `✓ Logged: ${score} at ${course}`);
+            setTimeout(closeGolfModal, 850);
+        }
+
         function addGrintRound() {
             const date = document.getElementById('grint-date').value;
             const course = document.getElementById('grint-course').value;
@@ -2321,41 +2464,13 @@
                 return;
             }
 
-            const vsPar = score - par;
-
-            const round = {
-                date,
-                course,
-                location,
-                rating,
-                slope,
-                score,
-                par,
-                vsPar,
-                putts,
-                girPct,
-                accuracy,
-                weather,
-                condition,
-                energy,
-                roundType,
-                notes,
-                play,
-                temp,
-                swingImprovements,
-                struggles,
+            saveGolfRound({
+                date, course, location, rating, slope, score, par,
+                putts, girPct, accuracy, weather, condition, energy, roundType,
+                notes, play, temp, swingImprovements, struggles,
                 lat: selectedCourseCoords ? selectedCourseCoords.lat : null,
-                lon: selectedCourseCoords ? selectedCourseCoords.lon : null,
-                source: 'grint'
-            };
-            round.differential = roundDifferential(round);
-            appData.golf.push(round);
-            appData.golf.sort((a, b) => new Date(b.date) - new Date(a.date));
-            const idx = computeHandicapIndex(appData.golf);   // WHS index incl. this round
-            round.handicap = idx;
-            round.hcpIndex = idx;
-            flagNewPRs();
-            saveData(appData);
+                lon: selectedCourseCoords ? selectedCourseCoords.lon : null
+            });
 
             // Clear form
             document.getElementById('grint-date').value = '';
@@ -3192,57 +3307,84 @@
             if (g) g.style.display = (document.getElementById('cardio-type').value === 'peloton') ? '' : 'none';
         }
 
-        function addCardio() {
-            const date = document.getElementById('cardio-date').value;
-            const type = document.getElementById('cardio-type').value;
-            const duration = parseFloat(document.getElementById('cardio-duration').value);
-            const intensity = parseFloat(document.getElementById('cardio-intensity').value);
-            const distance = parseFloat(document.getElementById('cardio-distance').value) || 0;
-            const hr = parseFloat(document.getElementById('cardio-hr').value) || 0;
-            const calories = parseFloat(document.getElementById('cardio-calories').value) || 0;
-            const output = type === 'peloton' ? (parseFloat(document.getElementById('cardio-output').value) || 0) : 0;
-            const feel = document.getElementById('cardio-feel').value;
-            const energy = document.getElementById('cardio-energy').value;
-            const notes = document.getElementById('cardio-notes').value;
-
-            if (!date || !type || !duration) {
-                showMessage('cardio-message', 'error', 'Date, type, and duration required');
-                return;
-            }
-
+        // Shared core: persist a cardio session, then refresh everything.
+        function saveCardioEntry(e) {
+            appData.cardio = appData.cardio || [];
             appData.cardio.push({
-                date,
-                type,
-                duration,
-                intensity,
-                distance,
-                hr,
-                calories,
-                output,
-                feel,
-                energyLevel: energy,
-                notes
+                date: e.date,
+                type: e.type,
+                duration: e.duration,
+                intensity: e.intensity || 0,
+                distance: e.distance || 0,
+                hr: e.hr || 0,
+                calories: e.calories || 0,
+                output: e.type === 'peloton' ? (e.output || 0) : 0,
+                feel: e.feel || '',
+                energyLevel: e.energy || '',
+                notes: e.notes || ''
             });
-
             appData.cardio.sort((a, b) => new Date(b.date) - new Date(a.date));
             flagNewPRs();
             saveData(appData);
             updateStats();
             renderCardioHistory();
             renderTrainingLog();
+        }
 
-            // Clear form
-            document.getElementById('cardio-duration').value = '';
-            document.getElementById('cardio-intensity').value = '';
-            document.getElementById('cardio-distance').value = '';
-            document.getElementById('cardio-hr').value = '';
-            document.getElementById('cardio-calories').value = '';
-            document.getElementById('cardio-output').value = '';
-            document.getElementById('cardio-feel').value = '';
-            document.getElementById('cardio-energy').value = '';
-            document.getElementById('cardio-notes').value = '';
-
+        function addCardio() {
+            const date = document.getElementById('cardio-date').value;
+            const type = document.getElementById('cardio-type').value;
+            const duration = parseFloat(document.getElementById('cardio-duration').value);
+            if (!date || !type || !duration) {
+                showMessage('cardio-message', 'error', 'Date, type, and duration required');
+                return;
+            }
+            saveCardioEntry({
+                date, type, duration,
+                intensity: parseFloat(document.getElementById('cardio-intensity').value) || 0,
+                distance: parseFloat(document.getElementById('cardio-distance').value) || 0,
+                hr: parseFloat(document.getElementById('cardio-hr').value) || 0,
+                calories: parseFloat(document.getElementById('cardio-calories').value) || 0,
+                output: parseFloat(document.getElementById('cardio-output').value) || 0,
+                feel: document.getElementById('cardio-feel').value,
+                energy: document.getElementById('cardio-energy').value,
+                notes: document.getElementById('cardio-notes').value
+            });
+            ['cardio-duration', 'cardio-intensity', 'cardio-distance', 'cardio-hr', 'cardio-calories', 'cardio-output', 'cardio-feel', 'cardio-energy', 'cardio-notes'].forEach(id => document.getElementById(id).value = '');
             showMessage('cardio-message', 'success', `✓ Cardio logged: ${duration} min ${type}`);
+        }
+
+        // Dashboard quick-entry: cardio (core fields; full detail still on the Cardio tab)
+        function onQcType() {
+            const t = document.getElementById('qc-type').value;
+            document.getElementById('qc-output-group').style.display = (t === 'peloton') ? '' : 'none';
+        }
+        function openCardioModal() {
+            document.getElementById('qc-date').value = todayStr();
+            document.getElementById('qc-type').value = 'peloton';
+            ['qc-duration', 'qc-intensity', 'qc-distance', 'qc-calories', 'qc-output', 'qc-feel', 'qc-energy'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('qc-message').innerHTML = '';
+            onQcType();
+            document.getElementById('cardio-modal').style.display = 'flex';
+            setTimeout(() => document.getElementById('qc-duration').focus(), 60);
+        }
+        function closeCardioModal() { document.getElementById('cardio-modal').style.display = 'none'; }
+        function logCardioFromModal() {
+            const date = document.getElementById('qc-date').value;
+            const type = document.getElementById('qc-type').value;
+            const duration = parseFloat(document.getElementById('qc-duration').value);
+            if (!date || !type || !duration) { showMessage('qc-message', 'error', 'Date, type, and duration required'); return; }
+            saveCardioEntry({
+                date, type, duration,
+                intensity: parseFloat(document.getElementById('qc-intensity').value) || 0,
+                distance: parseFloat(document.getElementById('qc-distance').value) || 0,
+                calories: parseFloat(document.getElementById('qc-calories').value) || 0,
+                output: parseFloat(document.getElementById('qc-output').value) || 0,
+                feel: document.getElementById('qc-feel').value,
+                energy: document.getElementById('qc-energy').value
+            });
+            showMessage('qc-message', 'success', `✓ Logged: ${duration} min ${type}`);
+            setTimeout(closeCardioModal, 850);
         }
 
 
@@ -4207,8 +4349,8 @@
             qa.innerHTML = `
                 <button class="${journaled ? 'btn-primary' : 'btn-secondary'}" onclick="toggleJournalToday()"><i class="ti ${journaled ? 'ti-check' : 'ti-notebook'}" style="margin-right:6px;"></i>${journaled ? 'Journaled ✓' : 'Journal today'}</button>
                 <button class="btn-secondary" onclick="${f.activeStart ? 'endFast()' : 'startFast()'}"><i class="ti ${f.activeStart ? 'ti-player-stop' : 'ti-player-play'}" style="margin-right:6px;"></i>${f.activeStart ? 'End fast' : 'Start fast'}</button>
-                <button class="btn-secondary" onclick="switchTab('cardio')"><i class="ti ti-run" style="margin-right:6px;"></i>Log cardio</button>
-                <button class="btn-secondary" onclick="switchTab('golf')"><i class="ti ti-golf" style="margin-right:6px;"></i>Log round</button>
+                <button class="btn-secondary" onclick="openCardioModal()"><i class="ti ti-run" style="margin-right:6px;"></i>Log cardio</button>
+                <button class="btn-secondary" onclick="openGolfModal()"><i class="ti ti-golf" style="margin-right:6px;"></i>Log round</button>
                 <button class="btn-secondary" onclick="openWeightModal()"><i class="ti ti-scale" style="margin-right:6px;"></i>Log weight</button>
                 <button class="btn-secondary" onclick="switchTab('reading')"><i class="ti ti-book" style="margin-right:6px;"></i>Reading</button>`;
         }
@@ -4418,6 +4560,102 @@
             if (d.currentWeek) reconcileWeek(d.currentWeek);   // bring saved week up to current template
         }
 
+        // ---- Non-destructive merge of two appData blobs (union of records; no silent data loss) ----
+        // Combine two records field-by-field, keeping the more-informative (truthy/non-zero) value.
+        function mergeRecord(a, b) {
+            const r = Object.assign({}, a);
+            Object.keys(b || {}).forEach(k => {
+                const bv = b[k];
+                if (bv !== undefined && bv !== null && bv !== '' && bv !== 0) r[k] = bv;
+                else if (r[k] === undefined) r[k] = bv;
+            });
+            return r;
+        }
+        // Union two arrays of records by a stable key; collisions merged field-wise.
+        function unionBy(a, b, keyFn) {
+            const map = new Map();
+            (a || []).forEach(x => { const k = keyFn(x); map.set(k, map.has(k) ? mergeRecord(map.get(k), x) : x); });
+            (b || []).forEach(x => { const k = keyFn(x); map.set(k, map.has(k) ? mergeRecord(map.get(k), x) : x); });
+            return [...map.values()];
+        }
+        // How much logged progress a week holds — used to keep the richer copy.
+        function weekProgress(w) {
+            if (!w || !w.days) return -1;
+            let s = 0;
+            Object.values(w.days).forEach(d => (d.exercises || []).forEach(e => { if (e.completed) s++; if (e.weight > 0) s++; }));
+            return s;
+        }
+        function mergeAppData(base, incoming) {
+            if (!base) return incoming;
+            if (!incoming) return base;
+            const out = Object.assign({}, base, incoming);   // incoming wins for scalars/unknown keys
+            out.ouraApiData = unionBy(base.ouraApiData, incoming.ouraApiData, o => o.date);
+            out.cardio = unionBy(base.cardio, incoming.cardio, c => `${c.date}|${c.type}|${c.duration}|${c.distance}`);
+            out.golf = unionBy(base.golf, incoming.golf, g => `${g.date}|${g.course}|${g.score}`);
+            out.visceral = unionBy(base.visceral, incoming.visceral, v => v.date || JSON.stringify(v));
+            out.oura = unionBy(base.oura, incoming.oura, o => o.date || JSON.stringify(o));
+            out.books = unionBy(base.books, incoming.books, b => String(b.id || b.key || (b.title + '|' + (b.author || ''))));
+            out.weekHistory = unionBy(base.weekHistory, incoming.weekHistory, w => 'w' + w.weekNum);
+            out.strengthWorkouts = unionBy(base.strengthWorkouts, incoming.strengthWorkouts, s => `${s.date}|${s.day}`);
+            out.journal = [...new Set([...(base.journal || []), ...(incoming.journal || [])])];
+            out.perfectWeeks = [...new Set([...(base.perfectWeeks || []), ...(incoming.perfectWeeks || [])])];
+            out.strength = Object.assign({}, base.strength || {}, incoming.strength || {});
+            // fasting: union the log, keep an active fast if either side has one
+            const bf = base.fasting || {}, inf = incoming.fasting || {};
+            out.fasting = Object.assign({}, bf, inf);
+            out.fasting.log = unionBy(bf.log, inf.log, l => String(l.start || l.date || JSON.stringify(l)));
+            out.fasting.activeStart = inf.activeStart || bf.activeStart || null;
+            // supersets: per-day shallow merge
+            out.supersets = Object.assign({}, base.supersets || {});
+            Object.keys(incoming.supersets || {}).forEach(day => { out.supersets[day] = Object.assign({}, out.supersets[day] || {}, incoming.supersets[day]); });
+            // lastOuraSync: keep the most recent
+            out.lastOuraSync = [base.lastOuraSync, incoming.lastOuraSync].filter(Boolean).sort().pop() || null;
+            // currentWeek: keep whichever is further along (don't drop a workout you just logged)
+            const a = base.currentWeek, b = incoming.currentWeek;
+            if (!a) out.currentWeek = b; else if (!b) out.currentWeek = a;
+            else if ((b.weekNum || 0) !== (a.weekNum || 0)) out.currentWeek = (b.weekNum || 0) > (a.weekNum || 0) ? b : a;
+            else out.currentWeek = weekProgress(b) >= weekProgress(a) ? b : a;
+            return out;
+        }
+
+        // ---- Manual backup: download / restore a full data file ----
+        function exportBackup() {
+            try {
+                const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const stamp = new Date().toISOString().slice(0, 10);
+                a.href = url; a.download = `ludos-backup-${stamp}.json`;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                showMessage('backup-message', 'success', '✓ Backup downloaded');
+            } catch (err) {
+                showMessage('backup-message', 'error', 'Export failed: ' + err.message);
+            }
+        }
+        function importBackup(input) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const incoming = JSON.parse(reader.result);
+                    if (!incoming || typeof incoming !== 'object') throw new Error('Not a valid backup file');
+                    const merged = mergeAppData(appData, incoming);   // union — never destructive
+                    ensureShape(merged);
+                    appData = merged;
+                    saveData(appData);
+                    refreshUI();
+                    renderDashboard();
+                    showMessage('backup-message', 'success', '✓ Backup merged into your data');
+                } catch (err) {
+                    showMessage('backup-message', 'error', 'Import failed: ' + err.message);
+                }
+                input.value = '';
+            };
+            reader.readAsText(file);
+        }
+
         function userDoc() {
             return db.collection('users').doc(currentUser.uid);
         }
@@ -4453,10 +4691,13 @@
         function attachCloud() {
             setSyncStatus('connecting');
             userDoc().get().then(doc => {
+                stashLocalBackup();   // snapshot current local before reconciling with cloud
                 if (doc.exists && doc.data().appData) {
-                    appData = doc.data().appData;     // cloud wins
+                    appData = mergeAppData(appData, doc.data().appData);   // merge, never blind-overwrite
                     ensureShape(appData);
                     saveLocal(appData);
+                    // push the merged union back up so cloud gains any local-only data
+                    userDoc().set({ appData: appData, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
                 } else {
                     ensureShape(appData);             // first login → migrate local data UP
                     userDoc().set({
@@ -4472,7 +4713,7 @@
                     if (snap.metadata.hasPendingWrites) return;   // ignore our own write echo
                     const data = snap.data();
                     if (data && data.appData) {
-                        appData = data.appData;
+                        appData = mergeAppData(appData, data.appData);   // merge incoming, keep local-only
                         ensureShape(appData);
                         saveLocal(appData);
                         refreshUI();
