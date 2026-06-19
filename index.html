@@ -786,6 +786,13 @@
             <style>
                 .dash-row { display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); gap:var(--gap); }
                 @media (max-width:820px) { .dash-row { grid-template-columns:1fr; } }
+                .pw-grid { display:grid; grid-template-columns:150px 1fr; gap:20px; align-items:center; }
+                .pw-ring { text-align:center; }
+                @media (max-width:560px) {
+                    .pw-grid { grid-template-columns:1fr; gap:16px; justify-items:center; }
+                    .pw-ring { order:-1; }            /* ring sits on top, goals full-width below */
+                    .pw-goals { width:100%; }
+                }
             </style>
             <div class="dash-row">
                 <div class="section" style="margin:0;">
@@ -4466,14 +4473,14 @@
                 return `<div style="display:flex; align-items:center; gap:10px; margin-bottom:9px;">
                     <i class="ti ${g.icon}" style="width:18px; text-align:center; color:${g.metFlag ? 'var(--success)' : 'var(--text-secondary)'};"></i>
                     <div style="flex:1;">
-                        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;"><span style="color:var(--text-primary);">${g.label}</span><span style="color:${g.metFlag ? 'var(--success)' : 'var(--text-secondary)'};">${valTxt}${g.metFlag ? ' ✓' : ''}</span></div>
+                        <div style="display:flex; justify-content:space-between; gap:8px; font-size:12px; margin-bottom:3px;"><span style="color:var(--text-primary); min-width:0;">${g.label}</span><span style="color:${g.metFlag ? 'var(--success)' : 'var(--text-secondary)'}; white-space:nowrap;">${valTxt}${g.metFlag ? ' ✓' : ''}</span></div>
                         <div style="background:rgba(148,163,184,0.18); height:6px; border-radius:3px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:${g.metFlag ? 'var(--success)' : 'var(--grad)'};"></div></div>
                     </div>
                 </div>`;
             }).join('');
-            el.innerHTML = `<div style="display:grid; grid-template-columns:150px 1fr; gap:20px; align-items:center;">
-                <div style="text-align:center;">${perfectRing(st.overall)}<div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${st.metCount}/7 goals${total ? `<br><span style="color:var(--success);">🏆 ${total} perfect week${total === 1 ? '' : 's'}</span>` : ''}</div></div>
-                <div>${goalsHtml}</div>
+            el.innerHTML = `<div class="pw-grid">
+                <div class="pw-ring">${perfectRing(st.overall)}<div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${st.metCount}/7 goals${total ? `<br><span style="color:var(--success);">🏆 ${total} perfect week${total === 1 ? '' : 's'}</span>` : ''}</div></div>
+                <div class="pw-goals">${goalsHtml}</div>
             </div>`;
         }
 
@@ -4691,13 +4698,11 @@
         function attachCloud() {
             setSyncStatus('connecting');
             userDoc().get().then(doc => {
-                stashLocalBackup();   // snapshot current local before reconciling with cloud
+                stashLocalBackup();   // keep a local safety copy before taking the cloud version
                 if (doc.exists && doc.data().appData) {
-                    appData = mergeAppData(appData, doc.data().appData);   // merge, never blind-overwrite
+                    appData = doc.data().appData;     // cloud wins (last device to save wins; deletes propagate)
                     ensureShape(appData);
                     saveLocal(appData);
-                    // push the merged union back up so cloud gains any local-only data
-                    userDoc().set({ appData: appData, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
                 } else {
                     ensureShape(appData);             // first login → migrate local data UP
                     userDoc().set({
@@ -4713,7 +4718,8 @@
                     if (snap.metadata.hasPendingWrites) return;   // ignore our own write echo
                     const data = snap.data();
                     if (data && data.appData) {
-                        appData = mergeAppData(appData, data.appData);   // merge incoming, keep local-only
+                        stashLocalBackup();
+                        appData = data.appData;     // cloud wins — live update from another device
                         ensureShape(appData);
                         saveLocal(appData);
                         refreshUI();
