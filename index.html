@@ -2064,10 +2064,13 @@
                 const previous = isWeight ? getPreviousWeight(ex.name) : null;
                 const group = supersetFor(dayKey, ex.name);
                 const ssColor = group ? SUPERSET_COLORS[group] : '';
+                // every row gets a left edge color; standalone movements each get a distinct hue (no badge)
+                const STANDALONE_COLORS = ['#64748b', '#0ea5e9', '#f43f5e', '#22c55e', '#eab308', '#d946ef', '#fb923c', '#2dd4bf'];
+                const rowColor = ssColor || STANDALONE_COLORS[idx % STANDALONE_COLORS.length];
                 const ssOptions = ['', 'A', 'B', 'C', 'D', 'E'].map(g => `<option value="${g}"${group === g ? ' selected' : ''}>${g ? 'SS ' + g : 'SS —'}</option>`).join('');
 
                 html += `
-                    <div class="exercise-row ${ex.completed ? 'completed' : ''}"${ssColor ? ` style="border-left:4px solid ${ssColor};"` : ''}>
+                    <div class="exercise-row ${ex.completed ? 'completed' : ''}" style="border-left:4px solid ${rowColor};">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                             <div style="flex: 1;">
                                 <div class="exercise-name">${ex.name}${group ? `<span style="background:${ssColor}; color:#fff; font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; margin-left:8px; vertical-align:middle;">SUPERSET ${group}</span>` : ''}</div>
@@ -2083,7 +2086,7 @@
                                 ` : ''}
                             </div>
                             <div style="display: flex; gap: 8px; margin-left: 12px; align-items: flex-start;">
-                                <select onchange="setSuperset('${dayKey}', ${idx}, this.value)" title="Superset group" style="background:var(--bg-hover); border:1px solid ${ssColor || 'var(--border)'}; color:var(--text-primary); border-radius:6px; padding:6px; font-size:12px;">${ssOptions}</select>
+                                <select onchange="setSuperset('${dayKey}', ${idx}, this.value)" title="Superset group" style="background:var(--bg-hover); border:1px solid ${rowColor}; color:var(--text-primary); border-radius:6px; padding:6px; font-size:12px;">${ssOptions}</select>
                                 ${isWeight ? `
                                     <input type="number" class="exercise-weight-input"
                                         value="${ex.weight || ''}"
