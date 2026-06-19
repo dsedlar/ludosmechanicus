@@ -579,6 +579,7 @@
                 </div>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <span id="sync-status" class="badge" style="background:var(--bg-hover);">Offline</span>
+                    <button class="btn-secondary" onclick="forceRefresh()" aria-label="Refresh" title="Refresh / check for updates" style="padding:8px 12px;"><i class="ti ti-refresh"></i></button>
                     <button class="btn-secondary" onclick="openSettings()" aria-label="Settings" style="padding:8px 12px;"><i class="ti ti-settings"></i></button>
                     <button class="btn-secondary" onclick="doLogout()">Log out</button>
                 </div>
@@ -4940,6 +4941,13 @@
         function doLogout() {
             if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
             if (auth) auth.signOut();
+        }
+
+        // Reload the latest published version, bypassing the iOS home-screen cache.
+        // A fresh ?v= query string forces the page (and assets) to be re-fetched.
+        function forceRefresh() {
+            setSyncStatus('connecting');
+            location.replace(location.pathname + '?v=' + Date.now());
         }
 
         // Local-only fallback if Firebase can't load (e.g. offline)
