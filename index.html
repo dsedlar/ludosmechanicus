@@ -2016,12 +2016,24 @@
 
         // Superset groups → colors (kept per day+exercise so they persist across weeks)
         const SUPERSET_COLORS = { A: '#3b82f6', B: '#f59e0b', C: '#14b8a6', D: '#a855f7', E: '#ec4899' };
+        // Coach-designed default supersets (by exercise name); overridable per row.
+        const DEFAULT_SUPERSETS = {
+            day1: { 'Hex Bar Jump': 'A', 'Landmine Single-Leg Squat': 'A', 'Landmine Chop 90/90': 'B', 'Single-Arm Hex Bar Deadlift': 'B' },
+            day2: { 'Landmine Scoop Toss': 'A', 'Medicine Ball Slam (overhead)': 'A', 'DB Bench or Floor Press': 'B', 'DB Row (single-arm)': 'B', 'Landmine High-to-Low Chop': 'C', 'Pallof Press': 'C' },
+            day3: { 'Landmine 90/90 Rotation (explosive)': 'A', 'Med Ball Rotational Slam (diagonal)': 'A', 'Pallof Press (kneeling)': 'B', 'Single-Arm Farmer Carry': 'B', 'Dead Bug Hold': 'C', '90/90 Hip Stretch': 'C' },
+            day4: { 'Landmine Chop (both directions)': 'A', 'Overhead Dumbbell Carry': 'A' }
+        };
+        function supersetFor(dayKey, exName) {
+            const u = appData.supersets && appData.supersets[dayKey] && appData.supersets[dayKey][exName];
+            if (u !== undefined) return u;   // user override (including '' = none)
+            return (DEFAULT_SUPERSETS[dayKey] && DEFAULT_SUPERSETS[dayKey][exName]) || '';
+        }
         function setSuperset(dayKey, exIdx, group) {
             const ex = appData.currentWeek.days[dayKey].exercises[exIdx];
             if (!ex) return;
             appData.supersets = appData.supersets || {};
             appData.supersets[dayKey] = appData.supersets[dayKey] || {};
-            if (group) appData.supersets[dayKey][ex.name] = group; else delete appData.supersets[dayKey][ex.name];
+            appData.supersets[dayKey][ex.name] = group;   // store even '' so it overrides the default
             saveData(appData);
             renderWorkout(parseInt(dayKey.replace('day', ''), 10));
         }
@@ -2050,7 +2062,7 @@
                 const isWeight = !ex.bodyweight && !ex.reps.includes('sec') && !ex.reps.includes('stretch') && !ex.reps.includes('circuit') && !ex.reps.includes('AMRAP');
                 const suggestion = isWeight ? getSuggestedWeight(ex.name) : null;
                 const previous = isWeight ? getPreviousWeight(ex.name) : null;
-                const group = ((appData.supersets && appData.supersets[dayKey]) || {})[ex.name] || '';
+                const group = supersetFor(dayKey, ex.name);
                 const ssColor = group ? SUPERSET_COLORS[group] : '';
                 const ssOptions = ['', 'A', 'B', 'C', 'D', 'E'].map(g => `<option value="${g}"${group === g ? ' selected' : ''}>${g ? 'SS ' + g : 'SS —'}</option>`).join('');
 
