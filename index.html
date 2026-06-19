@@ -161,7 +161,12 @@
             flex-wrap: wrap;
             border-bottom: 2px solid var(--border);
             padding-bottom: 16px;
+            padding-top: 12px;
             overflow-x: auto;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: var(--bg-dark);
         }
 
         .tab-btn {
@@ -606,12 +611,12 @@
                 <div class="stat-value"><span id="cardio-sessions">0</span><span class="trend-arrow" id="cardio-arrow"></span></div>
                 <div class="stat-change" id="cardio-change">This week</div>
             </div>
-            <div class="stat-card" onclick="switchTab('reading')">
+            <div class="stat-card" onclick="openSegment('pages')">
                 <div class="stat-label">Pages</div>
                 <div class="stat-value"><span id="reading-streak">0</span></div>
                 <div class="stat-change" id="reading-change">Read This Week</div>
             </div>
-            <div class="stat-card" onclick="switchTab('fasting')">
+            <div class="stat-card" onclick="openSegment('fasting')">
                 <div class="stat-label">Fasting</div>
                 <div class="stat-value"><span id="fasting-stat">—</span></div>
                 <div class="stat-change" id="fasting-change">Tap to start</div>
@@ -781,6 +786,17 @@
                 <div style="font-size:11px; color:var(--text-secondary); margin-top:10px;">Need course rating/slope, weather, or swing notes? Use the full form on the Golf tab.</div>
                 <button class="btn-primary" onclick="logGolfFromModal()" style="margin-top:14px; width:100%;">Save</button>
                 <div id="qg-message" style="margin-top:12px;"></div>
+            </div>
+        </div>
+
+        <div id="reading-modal" class="seg-modal" onclick="if(event.target===this)closeReadingModal()">
+            <div class="seg-modal-card" style="max-width:480px;">
+                <div class="seg-modal-head">
+                    <div class="seg-title"><span class="section-icon"><i class="ti ti-book"></i></span>Log Reading</div>
+                    <button class="seg-close" onclick="closeReadingModal()" aria-label="Close"><i class="ti ti-x"></i></button>
+                </div>
+                <div id="qr-body"></div>
+                <div id="qr-message" style="margin-top:12px;"></div>
             </div>
         </div>
         <style>
@@ -3920,7 +3936,18 @@
 
         let segRange = 'all';     // '30' | '90' | '365' | 'all'
         let segCurrentKey = null;
-        const SEGMENT_ORDER = ['strength', 'cardio', 'golfRounds', 'handicap', 'avgScore', 'weight', 'sleep', 'visceral'];
+        const SEGMENT_ORDER = ['strength', 'cardio', 'pages', 'fasting', 'golfRounds', 'handicap', 'avgScore', 'weight', 'sleep', 'visceral'];
+
+        // pages read per calendar day across all books (positive deltas only)
+        function readingDailyDeltas() {
+            const out = [];
+            (appData.books || []).forEach(b => {
+                const logs = (b.log || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+                let prev = 0;
+                logs.forEach(l => { const delta = Math.max(0, (l.page || 0) - prev); if (delta > 0) out.push({ date: l.date, pages: delta }); prev = l.page || 0; });
+            });
+            return out;
+        }
 
         function rangeCutoff() {
             if (segRange === 'all') return null;
@@ -4008,6 +4035,18 @@
                 data: () => { const s = dateSeries('ouraApiData', 'visceral'); return { labels: s.map(p => p.date), values: s.map(p => p.value) }; },
                 kpis: () => { const v = dateSeries('ouraApiData', 'visceral').map(p => p.value); if (!v.length) return [{ label: 'Current', value: '—' }]; const cur = v[v.length - 1]; return [{ label: 'Current', value: cur.toFixed(1) }, { label: 'Lowest', value: Math.min(...v).toFixed(1) }, { label: 'Change', value: (cur - v[0]).toFixed(1) }, { label: 'Target', value: '<10' }]; },
                 story: () => { const v = dateSeries('ouraApiData', 'visceral').map(p => p.value); if (!v.length) return 'Log visceral fat on the body-composition form to track it.'; const cur = v[v.length - 1]; return `Currently <strong>${cur.toFixed(1)}</strong> (target under 10). ${cur < 10 ? 'Below target — excellent.' : 'Cardio and sleep are your best levers to bring this down.'} ${v.length > 1 ? 'Trend ' + (cur < v[0] ? 'down' : 'up') + ' since your first reading.' : ''}`; }
+            },
+            pages: {
+                title: 'Pages Read', icon: 'ti-book', type: 'bar', color: '#0ea5e9', yMin: 0,
+                data: () => { const map = {}; readingDailyDeltas().filter(x => inRange(x.date)).forEach(x => { const k = x.date.slice(0, 7); map[k] = (map[k] || 0) + x.pages; }); const keys = Object.keys(map).sort(); return { labels: keys, values: keys.map(k => map[k]) }; },
+                kpis: () => { const d = readingDailyDeltas().filter(x => inRange(x.date)); const total = d.reduce((s, x) => s + x.pages, 0); const finished = (appData.books || []).filter(b => b.status === 'finished' && inRange(b.finishDate)).length; return [{ label: 'Pages', value: total }, { label: 'This week', value: pagesReadThisWeek() }, { label: 'Finished', value: finished }, { label: 'Streak', value: readingStreak() + 'd' }]; },
+                story: () => { const d = readingDailyDeltas().filter(x => inRange(x.date)); const total = d.reduce((s, x) => s + x.pages, 0); if (!total) return 'No reading logged in this range — update your page on the Reading tab to start the chart.'; const days = new Set(d.map(x => x.date)).size; return `<strong>${total}</strong> pages across <strong>${days}</strong> reading day${days === 1 ? '' : 's'} (avg <strong>${Math.round(total / days)}</strong>/day). Daily pages compound — a few each night adds up fast.`; }
+            },
+            fasting: {
+                title: 'Fasting', icon: 'ti-clock', type: 'bar', color: '#a855f7', yMin: 0,
+                data: () => { const log = (ensureFasting().log || []).filter(l => inRange(l.date)).slice().sort((a, b) => a.date.localeCompare(b.date)); return { labels: log.map(l => l.date), values: log.map(l => l.hours) }; },
+                kpis: () => { const log = (ensureFasting().log || []).filter(l => inRange(l.date)); const hrs = log.map(l => l.hours || 0); const total = hrs.reduce((a, b) => a + b, 0); return [{ label: 'Fasts', value: log.length }, { label: 'Avg', value: hrs.length ? (total / hrs.length).toFixed(1) + 'h' : '—' }, { label: 'Longest', value: hrs.length ? Math.max(...hrs).toFixed(1) + 'h' : '—' }, { label: 'Streak', value: fastingStreak() + 'd' }]; },
+                story: () => { const log = (ensureFasting().log || []).filter(l => inRange(l.date)); if (!log.length) return 'No fasts in this range — start a fast from the Dashboard or the Fasting tab.'; const hrs = log.map(l => l.hours || 0); const avg = hrs.reduce((a, b) => a + b, 0) / hrs.length; return `<strong>${log.length}</strong> fasts, averaging <strong>${avg.toFixed(1)}h</strong> (longest <strong>${Math.max(...hrs).toFixed(1)}h</strong>). ${avg >= 16 ? 'Solidly in the metabolic-benefit zone.' : 'Push toward 16h+ windows for the bigger metabolic payoff.'}`; }
             }
         };
 
@@ -4204,6 +4243,44 @@
             });
             return total;
         }
+        // Dashboard quick-entry: log reading progress (update current page on a book in progress)
+        function openReadingModal() {
+            const books = (appData.books || []).filter(b => b.status !== 'finished');
+            const body = document.getElementById('qr-body');
+            document.getElementById('qr-message').innerHTML = '';
+            if (!books.length) {
+                body.innerHTML = `<div style="color:var(--text-secondary); font-size:14px; margin-bottom:16px;">No book in progress yet. Add one on the Reading tab, then log pages here.</div>
+                    <button class="btn-primary" style="width:100%;" onclick="closeReadingModal(); switchTab('reading')">Go to Reading</button>`;
+            } else {
+                const first = books[0];
+                const sel = books.length > 1
+                    ? `<div class="form-group" style="margin-bottom:14px;"><label>Book</label><select id="qr-book" onchange="qrSyncPage()">${books.map(b => `<option value="${b.id}">${escHtml(b.title)}</option>`).join('')}</select></div>`
+                    : `<input type="hidden" id="qr-book" value="${first.id}"><div style="font-weight:600; color:var(--text-primary); margin-bottom:14px;">${escHtml(first.title)}</div>`;
+                const totalNote = first.totalPages ? ` <span style="color:var(--text-secondary); font-weight:400;">of ${first.totalPages}</span>` : '';
+                body.innerHTML = `${sel}
+                    <div class="form-group"><label>Current page${totalNote}</label><input type="number" id="qr-page" min="0" value="${first.currentPage || 0}"></div>
+                    <button class="btn-primary" style="margin-top:16px; width:100%;" onclick="logReadingFromModal()">Save</button>`;
+            }
+            document.getElementById('reading-modal').style.display = 'flex';
+            setTimeout(() => { const p = document.getElementById('qr-page'); if (p) { p.focus(); p.select(); } }, 60);
+        }
+        function qrSyncPage() {
+            const id = document.getElementById('qr-book').value;
+            const b = (appData.books || []).find(x => x.id === id);
+            if (b) document.getElementById('qr-page').value = b.currentPage || 0;
+        }
+        function closeReadingModal() { document.getElementById('reading-modal').style.display = 'none'; }
+        function logReadingFromModal() {
+            const id = document.getElementById('qr-book').value;
+            const page = document.getElementById('qr-page').value;
+            if (!id || page === '') { showMessage('qr-message', 'error', 'Enter a page number'); return; }
+            updateBookPage(id, page);   // records date+page, saves, re-renders reading
+            updateStats();              // refresh the Dashboard Pages card
+            const b = (appData.books || []).find(x => x.id === id);
+            showMessage('qr-message', 'success', `✓ Logged page ${b ? b.currentPage : page}`);
+            setTimeout(closeReadingModal, 850);
+        }
+
         function updateBookPage(id, val) {
             const b = (appData.books || []).find(x => x.id === id); if (!b) return;
             let p = parseInt(val, 10) || 0; if (p < 0) p = 0; if (b.totalPages && p > b.totalPages) p = b.totalPages;
@@ -4393,7 +4470,7 @@
                 <button class="btn-secondary" onclick="openCardioModal()"><i class="ti ti-run" style="margin-right:6px;"></i>Log cardio</button>
                 <button class="btn-secondary" onclick="openGolfModal()"><i class="ti ti-golf" style="margin-right:6px;"></i>Log round</button>
                 <button class="btn-secondary" onclick="openWeightModal()"><i class="ti ti-scale" style="margin-right:6px;"></i>Log weight</button>
-                <button class="btn-secondary" onclick="switchTab('reading')"><i class="ti ti-book" style="margin-right:6px;"></i>Reading</button>`;
+                <button class="btn-secondary" onclick="openReadingModal()"><i class="ti ti-book" style="margin-right:6px;"></i>Reading</button>`;
         }
 
         function renderTodayHabits() {
