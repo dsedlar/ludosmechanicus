@@ -1862,64 +1862,69 @@
                 name: 'Day 1: Lower Focus',
                 type: 'lower',
                 exercises: [
-                    { name: 'Hex Bar Jump', sets: 3, reps: '3', rpe: '8-9' },
-                    { name: 'Landmine Single-Leg Squat', sets: 4, reps: '6 ea', rpe: '7-8' },
-                    { name: 'Back Squat Modified / Goblet Squat', sets: 3, reps: '4-6', rpe: '6-7' },
-                    { name: 'Landmine Chop 90/90', sets: 3, reps: '8-10 ea', rpe: '6-7' },
-                    { name: 'Single-Arm Hex Bar Deadlift', sets: 3, reps: '6 ea', rpe: '7' },
-                    { name: 'Finisher: Sled Push + Med Ball Slam', sets: 1, reps: '8-10 min circuit', rpe: '8' }
+                    { name: 'Hex Bar Jump', sets: 3, reps: '3', rpe: '8-9', cat: 'power' },
+                    { name: 'Landmine Single-Leg Squat', sets: 4, reps: '6 ea', rpe: '7-8', cat: 'strength' },
+                    { name: 'Back Squat Modified / Goblet Squat', sets: 3, reps: '4-6', rpe: '6-7', cat: 'strength' },
+                    { name: 'Landmine Chop 90/90', sets: 3, reps: '8-10 ea', rpe: '6-7', cat: 'core' },
+                    { name: 'Single-Arm Hex Bar Deadlift', sets: 3, reps: '6 ea', rpe: '7', cat: 'strength' },
+                    { name: 'Finisher: Sled Push', sets: 4, reps: '15-20m', rpe: '8', cat: 'finisher' },
+                    { name: 'Finisher: Med Ball Slam', sets: 4, reps: '8-10', rpe: '8', cat: 'finisher' }
                 ]
             },
             day2: {
                 name: 'Day 2: Upper Power',
                 type: 'upper',
                 exercises: [
-                    { name: 'Landmine Scoop Toss', sets: 4, reps: '5 ea', rpe: '8-9' },
-                    { name: 'Medicine Ball Slam (overhead)', sets: 3, reps: '6', rpe: '8-9' },
-                    { name: 'DB Bench or Floor Press', sets: 3, reps: '8-10', rpe: '7-8' },
-                    { name: 'DB Row (single-arm)', sets: 3, reps: '8-10 ea', rpe: '7-8' },
-                    { name: 'Landmine High-to-Low Chop', sets: 3, reps: '8-10 ea', rpe: '6-7' },
-                    { name: 'Pallof Press', sets: 3, reps: '10-12 ea', rpe: '6' },
-                    { name: 'Finisher: Med Ball + Farmer Carry', sets: 1, reps: '8 min circuit', rpe: '7' }
+                    { name: 'Landmine Scoop Toss', sets: 4, reps: '5 ea', rpe: '8-9', cat: 'power' },
+                    { name: 'Medicine Ball Slam (overhead)', sets: 3, reps: '6', rpe: '8-9', cat: 'power' },
+                    { name: 'DB Bench or Floor Press', sets: 3, reps: '8-10', rpe: '7-8', cat: 'strength' },
+                    { name: 'DB Row (single-arm)', sets: 3, reps: '8-10 ea', rpe: '7-8', cat: 'strength' },
+                    { name: 'Landmine High-to-Low Chop', sets: 3, reps: '8-10 ea', rpe: '6-7', cat: 'core' },
+                    { name: 'Pallof Press', sets: 3, reps: '10-12 ea', rpe: '6', cat: 'core' },
+                    { name: 'Finisher: Med Ball Throws', sets: 4, reps: '8-10', rpe: '7', cat: 'finisher' },
+                    { name: 'Finisher: Farmer Carry', sets: 4, reps: '30-40m', rpe: '7', cat: 'finisher' }
                 ]
             },
             day3: {
                 name: 'Day 3: Rotational Core',
                 type: 'core',
                 exercises: [
-                    { name: 'Landmine 90/90 Rotation (explosive)', sets: 4, reps: '6 ea', rpe: '8-9', note: 'PRIMARY GOLF SWING DRIVER' },
-                    { name: 'Med Ball Rotational Slam (diagonal)', sets: 3, reps: '8 ea', rpe: '8-9' },
-                    { name: 'Pallof Press (kneeling)', sets: 3, reps: '12 ea', rpe: '6' },
-                    { name: 'Single-Arm Farmer Carry', sets: 3, reps: '40-50m ea', rpe: '7' },
-                    { name: 'Dead Bug Hold', sets: 3, reps: '30-45 sec', rpe: '6' },
-                    { name: '90/90 Hip Stretch', sets: 2, reps: '45-60 sec ea', rpe: 'stretch' },
-                    { name: 'Finisher: Battle Ropes + Sled Push', sets: 1, reps: '10 min circuit', rpe: '8' }
+                    { name: 'Landmine 90/90 Rotation (explosive)', sets: 4, reps: '6 ea', rpe: '8-9', cat: 'power', note: 'PRIMARY GOLF SWING DRIVER' },
+                    { name: 'Med Ball Rotational Slam (diagonal)', sets: 3, reps: '8 ea', rpe: '8-9', cat: 'power' },
+                    { name: 'Pallof Press (kneeling)', sets: 3, reps: '12 ea', rpe: '6', cat: 'core' },
+                    { name: 'Single-Arm Farmer Carry', sets: 3, reps: '40-50m ea', rpe: '7', cat: 'carry' },
+                    { name: 'Dead Bug Hold', sets: 3, reps: '30-45 sec', rpe: '6', cat: 'core' },
+                    { name: '90/90 Hip Stretch', sets: 2, reps: '45-60 sec ea', rpe: 'stretch', cat: 'mobility' },
+                    { name: 'Finisher: Battle Ropes', sets: 4, reps: '30 sec', rpe: '8', cat: 'finisher' },
+                    { name: 'Finisher: Sled Push', sets: 4, reps: '15-20m', rpe: '8', cat: 'finisher' }
                 ]
             },
             day4: {
                 name: 'Day 4: Full Body Power',
                 type: 'full',
                 exercises: [
-                    { name: 'Hex Bar Jump + Med Ball Slam Superset', sets: 3, reps: '(3 jumps + 5 slams)', rpe: '8-9' },
-                    { name: 'Landmine Chop (both directions)', sets: 3, reps: '10 ea', rpe: '7' },
-                    { name: 'Overhead Dumbbell Carry', sets: 3, reps: '40m ea', rpe: '7' },
-                    { name: 'Landmine Single-Leg Deadlift', sets: 3, reps: '5-6 ea', rpe: '7-8' },
-                    { name: 'Finisher: Med Ball + Rowing', sets: 1, reps: '10 min AMRAP', rpe: '8' }
+                    { name: 'Hex Bar Jump', sets: 3, reps: '3', rpe: '8-9', cat: 'power' },
+                    { name: 'Med Ball Slam', sets: 3, reps: '5', rpe: '8-9', cat: 'power' },
+                    { name: 'Landmine Chop (both directions)', sets: 3, reps: '10 ea', rpe: '7', cat: 'core' },
+                    { name: 'Overhead Dumbbell Carry', sets: 3, reps: '40m ea', rpe: '7', cat: 'carry' },
+                    { name: 'Landmine Single-Leg Deadlift', sets: 3, reps: '5-6 ea', rpe: '7-8', cat: 'strength' },
+                    { name: 'Finisher: Med Ball Slam', sets: 4, reps: '8-10', rpe: '8', cat: 'finisher' },
+                    { name: 'Finisher: Rowing', sets: 1, reps: '500m', rpe: '8', cat: 'finisher' }
                 ]
             }
         };
 
         // Generic full-body bodyweight routine (no equipment) — used when there's no weight room
         const BODYWEIGHT_TEMPLATE = [
-            { name: 'Jump Squats', sets: 4, reps: '8', rpe: '8', note: 'Explosive — drive through the floor', bodyweight: true },
-            { name: 'Push-Ups', sets: 4, reps: '12-20', rpe: '7-8', bodyweight: true },
-            { name: 'Reverse Lunges', sets: 3, reps: '10 ea', rpe: '7', bodyweight: true },
-            { name: 'Pike Push-Ups', sets: 3, reps: '8-12', rpe: '7-8', note: 'Shoulders', bodyweight: true },
-            { name: 'Plank', sets: 3, reps: '45-60 sec', rpe: '7', bodyweight: true },
-            { name: 'Side Plank + Reach-Through', sets: 3, reps: '10 ea', rpe: '7', note: 'Rotational core for the swing', bodyweight: true },
-            { name: 'Bird-Dog', sets: 3, reps: '10 ea', rpe: '6', bodyweight: true },
-            { name: 'Glute Bridge', sets: 3, reps: '15', rpe: '6', bodyweight: true },
-            { name: 'Finisher: Burpees', sets: 1, reps: '8-10 min AMRAP', rpe: '8', bodyweight: true }
+            { name: 'Jump Squats', sets: 4, reps: '8', rpe: '8', note: 'Explosive — drive through the floor', cat: 'power', bodyweight: true },
+            { name: 'Push-Ups', sets: 4, reps: '12-20', rpe: '7-8', cat: 'strength', bodyweight: true },
+            { name: 'Reverse Lunges', sets: 3, reps: '10 ea', rpe: '7', cat: 'strength', bodyweight: true },
+            { name: 'Pike Push-Ups', sets: 3, reps: '8-12', rpe: '7-8', note: 'Shoulders', cat: 'strength', bodyweight: true },
+            { name: 'Plank', sets: 3, reps: '45-60 sec', rpe: '7', cat: 'core', bodyweight: true },
+            { name: 'Side Plank + Reach-Through', sets: 3, reps: '10 ea', rpe: '7', note: 'Rotational core for the swing', cat: 'core', bodyweight: true },
+            { name: 'Bird-Dog', sets: 3, reps: '10 ea', rpe: '6', cat: 'core', bodyweight: true },
+            { name: 'Glute Bridge', sets: 3, reps: '15', rpe: '6', cat: 'strength', bodyweight: true },
+            { name: 'Finisher: Burpees', sets: 1, reps: '8-10 min AMRAP', rpe: '8', cat: 'finisher', bodyweight: true }
         ];
 
         // Swap a single day between its gym workout and the bodyweight routine (preserves gym weights)
@@ -1927,7 +1932,7 @@
             const day = appData.currentWeek.days[dayKey];
             if (!day.bodyweight) {
                 day.gymExercises = day.exercises;   // stash gym list (weights + completion)
-                day.exercises = BODYWEIGHT_TEMPLATE.map(ex => ({ ...ex, weight: 0, actualRpe: null, completed: false }));
+                day.exercises = BODYWEIGHT_TEMPLATE.map(ex => ({ ...ex, cat: ex.cat || '', weight: 0, actualRpe: null, completed: false }));
                 day.bodyweight = true;
             } else {
                 day.exercises = day.gymExercises || day.exercises;
@@ -1962,6 +1967,7 @@
                         reps: ex.reps,
                         rpe: ex.rpe,
                         note: ex.note || '',
+                        cat: ex.cat || '',
                         weight: 0,
                         actualRpe: null,
                         completed: false
@@ -2014,6 +2020,49 @@
             };
         }
 
+        // Category → color. Same legend across every workout so a color always means the same movement type.
+        const CATEGORY_COLORS = {
+            power:    '#f59e0b', // amber  — explosive / power
+            strength: '#3b82f6', // blue   — main strength lifts
+            core:     '#22c55e', // green  — core / rotation / anti-rotation
+            carry:    '#14b8a6', // teal   — loaded carries
+            mobility: '#ec4899', // pink   — mobility / stretch
+            finisher: '#a855f7'  // purple — finishers / conditioning
+        };
+        const CATEGORY_LABELS = { power: 'Power', strength: 'Strength', core: 'Core', carry: 'Carry', mobility: 'Mobility', finisher: 'Finisher' };
+        function categoryColor(ex) { return CATEGORY_COLORS[ex && ex.cat] || '#64748b'; }
+
+        // Bring a saved week up to the current template: splits combined rows, adds new blocks,
+        // and refreshes prescriptions/categories while preserving logged weight + completion by name.
+        function reconcileDayList(list, templateExercises) {
+            const prev = Array.isArray(list) ? list : [];
+            return templateExercises.map(t => {
+                const old = prev.find(e => e.name === t.name) || {};
+                return {
+                    name: t.name, sets: t.sets, reps: t.reps, rpe: t.rpe,
+                    note: t.note || '', cat: t.cat || '',
+                    weight: old.weight || 0,
+                    actualRpe: (old.actualRpe != null ? old.actualRpe : null),
+                    completed: !!old.completed
+                };
+            });
+        }
+        function reconcileWeek(week) {
+            if (!week || !week.days) return;
+            ['day1', 'day2', 'day3', 'day4'].forEach(dk => {
+                const day = week.days[dk];
+                const tmpl = WORKOUT_TEMPLATE[dk];
+                if (!day || !tmpl) return;
+                if (day.bodyweight) {
+                    if (Array.isArray(day.gymExercises)) day.gymExercises = reconcileDayList(day.gymExercises, tmpl.exercises);
+                } else {
+                    day.exercises = reconcileDayList(day.exercises, tmpl.exercises);
+                    day.completed = day.exercises.length > 0 && day.exercises.every(e => e.completed);
+                    if (!day.completed) day.completedDate = null;
+                }
+            });
+        }
+
         // Superset groups → colors (kept per day+exercise so they persist across weeks)
         const SUPERSET_COLORS = { A: '#3b82f6', B: '#f59e0b', C: '#14b8a6', D: '#a855f7', E: '#ec4899' };
         // Coach-designed default supersets (by exercise name); overridable per row.
@@ -2021,7 +2070,7 @@
             day1: { 'Hex Bar Jump': 'A', 'Landmine Single-Leg Squat': 'A', 'Landmine Chop 90/90': 'B', 'Single-Arm Hex Bar Deadlift': 'B' },
             day2: { 'Landmine Scoop Toss': 'A', 'Medicine Ball Slam (overhead)': 'A', 'DB Bench or Floor Press': 'B', 'DB Row (single-arm)': 'B', 'Landmine High-to-Low Chop': 'C', 'Pallof Press': 'C' },
             day3: { 'Landmine 90/90 Rotation (explosive)': 'A', 'Med Ball Rotational Slam (diagonal)': 'A', 'Pallof Press (kneeling)': 'B', 'Single-Arm Farmer Carry': 'B', 'Dead Bug Hold': 'C', '90/90 Hip Stretch': 'C' },
-            day4: { 'Landmine Chop (both directions)': 'A', 'Overhead Dumbbell Carry': 'A' }
+            day4: { 'Hex Bar Jump': 'A', 'Med Ball Slam': 'A', 'Landmine Chop (both directions)': 'B', 'Overhead Dumbbell Carry': 'B' }
         };
         function supersetFor(dayKey, exName) {
             const u = appData.supersets && appData.supersets[dayKey] && appData.supersets[dayKey][exName];
@@ -2056,6 +2105,10 @@
                             <i class="ti ${day.bodyweight ? 'ti-barbell' : 'ti-home'}" style="margin-right: 6px;"></i>${day.bodyweight ? 'Back to gym workout' : 'No weights? Bodyweight'}
                         </button>
                     </div>
+                    <div style="display:flex; flex-wrap:wrap; gap:6px 14px; margin-bottom:14px; font-size:11px; color:var(--text-secondary);">
+                        ${Object.keys(CATEGORY_LABELS).map(k => `<span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:2px; background:${CATEGORY_COLORS[k]};"></span>${CATEGORY_LABELS[k]}</span>`).join('')}
+                        <span style="display:inline-flex; align-items:center; gap:5px;"><span style="font-size:9px; font-weight:700; padding:1px 5px; border-radius:3px; background:var(--bg-hover); border:1px solid var(--border); color:var(--text-secondary);">SS A</span>= do back-to-back</span>
+                    </div>
             `;
 
             day.exercises.forEach((ex, idx) => {
@@ -2063,17 +2116,15 @@
                 const suggestion = isWeight ? getSuggestedWeight(ex.name) : null;
                 const previous = isWeight ? getPreviousWeight(ex.name) : null;
                 const group = supersetFor(dayKey, ex.name);
-                const ssColor = group ? SUPERSET_COLORS[group] : '';
-                // every row gets a left edge color; standalone movements each get a distinct hue (no badge)
-                const STANDALONE_COLORS = ['#64748b', '#0ea5e9', '#f43f5e', '#22c55e', '#eab308', '#d946ef', '#fb923c', '#2dd4bf'];
-                const rowColor = ssColor || STANDALONE_COLORS[idx % STANDALONE_COLORS.length];
+                // left edge color = movement category (consistent legend across every workout)
+                const rowColor = categoryColor(ex);
                 const ssOptions = ['', 'A', 'B', 'C', 'D', 'E'].map(g => `<option value="${g}"${group === g ? ' selected' : ''}>${g ? 'SS ' + g : 'SS —'}</option>`).join('');
 
                 html += `
                     <div class="exercise-row ${ex.completed ? 'completed' : ''}" style="border-left:4px solid ${rowColor};">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                             <div style="flex: 1;">
-                                <div class="exercise-name">${ex.name}${group ? `<span style="background:${ssColor}; color:#fff; font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; margin-left:8px; vertical-align:middle;">SUPERSET ${group}</span>` : ''}</div>
+                                <div class="exercise-name">${ex.name}${group ? `<span style="background:var(--bg-hover); color:var(--text-secondary); border:1px solid var(--border); font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; margin-left:8px; vertical-align:middle;">SUPERSET ${group}</span>` : ''}</div>
                                 <div class="exercise-details">
                                     ${ex.sets}x${ex.reps} · RPE ${ex.rpe}
                                     ${ex.note ? `<div style="margin-top: 4px; font-style: italic; color: var(--primary);">→ ${ex.note}</div>` : ''}
@@ -2086,7 +2137,7 @@
                                 ` : ''}
                             </div>
                             <div style="display: flex; gap: 8px; margin-left: 12px; align-items: flex-start;">
-                                <select onchange="setSuperset('${dayKey}', ${idx}, this.value)" title="Superset group" style="background:var(--bg-hover); border:1px solid ${rowColor}; color:var(--text-primary); border-radius:6px; padding:6px; font-size:12px;">${ssOptions}</select>
+                                <select onchange="setSuperset('${dayKey}', ${idx}, this.value)" title="Superset group" style="background:var(--bg-hover); border:1px solid var(--border); color:var(--text-primary); border-radius:6px; padding:6px; font-size:12px;">${ssOptions}</select>
                                 ${isWeight ? `
                                     <input type="number" class="exercise-weight-input"
                                         value="${ex.weight || ''}"
@@ -4254,6 +4305,8 @@
             // Initialize current week if needed
             if (!appData.currentWeek) {
                 appData.currentWeek = generateWeek(1);
+            } else {
+                reconcileWeek(appData.currentWeek);   // local load → split combined rows / refresh categories
             }
             document.getElementById('current-week-num').textContent = appData.currentWeek.weekNum;
 
@@ -4321,6 +4374,7 @@
             d.journal     = d.journal     || [];
             d.perfectWeeks = d.perfectWeeks || [];
             d.supersets   = d.supersets   || {};
+            if (d.currentWeek) reconcileWeek(d.currentWeek);   // bring saved week up to current template
         }
 
         function userDoc() {
