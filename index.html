@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Ludos Mechanicus: Imperium Totale</title>
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -480,6 +480,40 @@
             .form-row {
                 grid-template-columns: 1fr;
             }
+        }
+
+        /* iPhone polish */
+        @media (max-width: 480px) {
+            .container {
+                padding: 14px;
+                padding-left: max(14px, env(safe-area-inset-left));
+                padding-right: max(14px, env(safe-area-inset-right));
+                padding-bottom: max(14px, env(safe-area-inset-bottom));
+            }
+            .header {
+                padding: 18px 18px;
+                padding-top: max(18px, env(safe-area-inset-top));
+                margin-bottom: 18px;
+            }
+            .header h1 { font-size: 19px; line-height: 1.2; }
+            .header svg { width: 36px; height: 36px; }
+            .quick-stats { gap: 10px; margin-bottom: 18px; }
+            .stat-card { padding: 14px 12px; }
+            .stat-value { font-size: 22px; }
+            .section { padding: 16px; margin-bottom: 14px; }
+            .section-title { font-size: 16px; }
+            /* tabs become one horizontally-scrolling row instead of stacking into 3 rows */
+            .tabs {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                gap: 6px;
+                margin-bottom: 18px;
+                padding-bottom: 10px;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            .tabs::-webkit-scrollbar { display: none; }
+            .tab-btn { flex: 0 0 auto; padding: 9px 14px; font-size: 13px; }
         }
 
         .footer {
