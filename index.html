@@ -3710,7 +3710,31 @@
 
         function printSummary() {
             if (!document.querySelector('#summary-container .wsum')) generateWeeklySummary();
-            setTimeout(() => window.print(), 60);   // let the report render first
+            const report = document.querySelector('#summary-container .wsum');
+            if (!report) return;
+
+            // Open a clean, isolated window with only the report + the app's stylesheets.
+            // Far more reliable than window.print() over the whole nested page (no blank pages).
+            const styles = [...document.querySelectorAll('link[rel="stylesheet"], style')].map(el => el.outerHTML).join('\n');
+            const w = window.open('', '_blank');
+            if (!w) {   // popup blocked → best-effort in-page print
+                window.print();
+                return;
+            }
+            w.document.open();
+            w.document.write(
+                '<!doctype html><html><head><meta charset="utf-8">' +
+                '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+                '<title>Weekly Summary</title>' + styles +
+                '<style>body{background:#0f172a;margin:0;padding:24px;}@media print{body{padding:0;background:#0f172a;}}</style>' +
+                '</head><body><div id="summary-container">' + report.outerHTML + '</div></body></html>'
+            );
+            w.document.close();
+            w.focus();
+            // Wait for fonts/styles to load in the new window, then open the print/PDF dialog.
+            const fire = () => { try { w.print(); } catch (e) {} };
+            if (w.document.fonts && w.document.fonts.ready) { w.document.fonts.ready.then(() => setTimeout(fire, 200)); setTimeout(fire, 1200); }
+            else { setTimeout(fire, 700); }
         }
 
         function exportSummaryAsText() {
