@@ -545,6 +545,41 @@
         .export-button:hover {
             background: #047857;
         }
+
+        /* ===== Weekly Summary one-page report ===== */
+        .wsum { max-width: 940px; margin: 0 auto; background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+        .wsum-head { background: var(--grad); padding: 26px 30px; display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+        .wsum-head-l h2 { font-family: 'Space Grotesk', sans-serif; font-size: 25px; font-weight: 700; color: #fff; margin: 0; letter-spacing: -.01em; }
+        .wsum-range { color: rgba(255,255,255,.9); font-size: 13px; margin-top: 5px; font-weight: 500; }
+        .wsum-badge { display: inline-block; margin-top: 10px; background: rgba(255,255,255,.18); color: #fff; font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 999px; }
+        .wsum-ring { flex-shrink: 0; }
+        .wsum-body { padding: 24px 30px 28px; }
+        .wsum-sec { font-family: 'Space Grotesk', sans-serif; font-size: 12px; text-transform: uppercase; letter-spacing: .09em; color: var(--text-secondary); margin: 0 0 14px; font-weight: 600; }
+        .wsum-goals { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 28px; }
+        .wsum-goal { background: var(--bg-hover); border-radius: 12px; padding: 14px 15px; }
+        .wsum-goal-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; gap: 8px; }
+        .wsum-goal .lbl { font-size: 12px; color: var(--text-secondary); display: inline-flex; align-items: center; gap: 6px; }
+        .wsum-goal .val { font-family: 'Space Grotesk', sans-serif; font-size: 19px; font-weight: 700; color: var(--text-primary); white-space: nowrap; }
+        .wsum-goal .val small { font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+        .wsum-pbar { height: 6px; border-radius: 3px; background: rgba(148,163,184,.18); overflow: hidden; }
+        .wsum-pbar > div { height: 100%; border-radius: 3px; }
+        .wsum-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 28px; }
+        .wsum-stat { background: var(--bg-hover); border-radius: 12px; padding: 16px 12px; text-align: center; }
+        .wsum-stat .v { font-family: 'Space Grotesk', sans-serif; font-size: 23px; font-weight: 700; color: var(--primary); }
+        .wsum-stat .l { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .06em; margin-top: 5px; font-weight: 600; }
+        .wsum-stat .s { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+        .wsum-insights { background: var(--bg-hover); border-left: 3px solid var(--accent); border-radius: 0 12px 12px 0; padding: 16px 18px; }
+        .wsum-insights .line { display: flex; gap: 9px; align-items: flex-start; font-size: 14px; line-height: 1.5; margin: 7px 0; color: var(--text-primary); }
+        .wsum-insights .line i { margin-top: 2px; flex-shrink: 0; }
+        .wsum-foot { text-align: center; font-size: 11px; color: var(--text-secondary); margin-top: 20px; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #summary-container, #summary-container * { visibility: visible; }
+            #summary-container { position: absolute; left: 0; top: 0; width: 100%; }
+            .wsum { box-shadow: none; border: none; max-width: 100%; }
+            .wsum-goal, .wsum-stat, .wsum-insights { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
     </style>
 </head>
 <body>
@@ -1525,6 +1560,7 @@
                 </div>
                 <div style="margin-bottom: 20px;">
                     <button class="export-button" onclick="generateWeeklySummary()">Generate This Week's Summary</button>
+                    <button class="export-button" style="background: var(--primary); margin-left: 8px;" onclick="printSummary()">Print / Save PDF</button>
                     <button class="export-button" style="background: var(--accent-cardio); margin-left: 8px;" onclick="exportSummaryAsText()">Export as Text</button>
                 </div>
                 <div id="summary-container"></div>
@@ -3592,72 +3628,89 @@
         // ============ WEEKLY SUMMARY ============
         function generateWeeklySummary() {
             const container = document.getElementById('summary-container');
-            const now = new Date();
-            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const st = perfectWeekStatus();
+            const { start, end } = weekBounds();
+            const inWk = ds => { if (!ds) return false; const d = new Date(ds + 'T00:00:00'); return d >= start && d <= end; };
+            const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const rangeTxt = `${fmt(start)} – ${fmt(end)}, ${end.getFullYear()}`;
 
-            const strengthData = loadStrengthData();
-            const thisWeekStrength = Object.values(strengthData).filter(s => s && s.date && new Date(s.date) >= weekAgo).length;
-            const thisWeekCardio = appData.cardio.filter(c => new Date(c.date) >= weekAgo);
-            const thisWeekGolf = appData.golf.filter(g => new Date(g.date) >= weekAgo);
-            const thisWeekOura = appData.ouraApiData.filter(o => new Date(o.date) >= weekAgo);
-
-            const avgSleep = thisWeekOura.length > 0 ? (thisWeekOura.reduce((sum, o) => sum + o.sleepDuration, 0) / thisWeekOura.length).toFixed(1) : '—';
-            const avgHrv = thisWeekOura.length > 0 ? (thisWeekOura.reduce((sum, o) => sum + o.hrv, 0) / thisWeekOura.length).toFixed(0) : '—';
-            const totalCardioMin = thisWeekCardio.reduce((sum, c) => sum + c.duration, 0);
+            // ----- supporting stats (Mon–Sun, matching Perfect Week) -----
+            const cardioWk = (appData.cardio || []).filter(c => inWk(c.date));
+            const cardioMin = cardioWk.reduce((s, c) => s + (c.duration || 0), 0);
+            const golfWk = (appData.golf || []).filter(g => inWk(g.date) && g.score > 0);
+            const golfAvg = golfWk.length ? Math.round(golfWk.reduce((s, g) => s + g.score, 0) / golfWk.length) : null;
+            const hrvWk = (appData.ouraApiData || []).filter(o => inWk(o.date) && o.hrv > 0);
+            const avgHrv = hrvWk.length ? Math.round(hrvWk.reduce((s, o) => s + o.hrv, 0) / hrvWk.length) : null;
+            const pagesWk = pagesReadThisWeek();
+            const wSeries = (appData.ouraApiData || []).filter(o => o.weight > 0).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+            const curWeight = wSeries.length ? wSeries[wSeries.length - 1].weight : null;
+            const wChange = wSeries.length > 1 ? curWeight - wSeries[0].weight : null;
             const visSeries = getVisceralSeries();
-            const latestVisceral = visSeries.length > 0 ? visSeries[visSeries.length - 1].level : '—';
+            const curVis = visSeries.length ? visSeries[visSeries.length - 1].level : null;
 
-            const summary = `
-<div class="summary-box">
-    <div class="summary-title"><i class="ti ti-chart-bar" style="color:var(--accent); margin-right:6px;"></i>Weekly Training Volume</div>
-    <div class="summary-text">
-        <strong>Strength Days:</strong> ${thisWeekStrength}/4 completed<br>
-        <strong>Cardio Sessions:</strong> ${thisWeekCardio.length} sessions (${totalCardioMin} minutes)<br>
-        <strong>Golf Rounds:</strong> ${thisWeekGolf.length} rounds<br>
-        <strong>Total Training Days:</strong> ${new Set([...Object.keys(strengthData), ...thisWeekCardio.map(c => c.date), ...thisWeekGolf.map(g => g.date)]).size}
-    </div>
-</div>
+            // ----- 7 weekly goals (the scorecard) -----
+            const shortLabel = { 'Avg sleep score': 'Sleep score', 'Avg sleep': 'Sleep hrs' };
+            const goalCards = st.goals.map(g => {
+                const val = g.display !== undefined ? g.display : `${g.cur}`;
+                const goalTxt = g.goalTxt !== undefined ? g.goalTxt : `/ ${g.target}`;
+                const pct = Math.round(g.progress * 100);
+                const barCol = g.metFlag ? 'var(--success)' : 'var(--grad)';
+                return `<div class="wsum-goal">
+                    <div class="wsum-goal-top">
+                        <span class="lbl"><i class="ti ${g.icon}" style="color:${g.metFlag ? 'var(--success)' : 'var(--text-secondary)'};"></i>${shortLabel[g.label] || g.label}</span>
+                        <span class="val" style="${g.metFlag ? 'color:var(--success);' : ''}">${val} <small>${goalTxt}</small>${g.metFlag ? ' <i class="ti ti-check" style="font-size:13px;"></i>' : ''}</span>
+                    </div>
+                    <div class="wsum-pbar"><div style="width:${pct}%; background:${barCol};"></div></div>
+                </div>`;
+            }).join('');
 
-<div class="summary-box">
-    <div class="summary-title"><i class="ti ti-moon" style="color:var(--accent); margin-right:6px;"></i>Sleep &amp; Recovery</div>
-    <div class="summary-text">
-        <strong>Avg Sleep Duration:</strong> ${avgSleep} hours<br>
-        <strong>Avg HRV:</strong> ${avgHrv} (${avgHrv > 50 ? 'Good recovery ✓' : 'Monitor recovery'})<br>
-        <strong>Sleep Quality Days:</strong> ${thisWeekOura.filter(o => o.sleepScore > 75).length}/${thisWeekOura.length}<br>
-        <strong>Recommendation:</strong> ${avgSleep > 7 ? 'Excellent sleep habits' : 'Prioritize 7-9 hrs nightly'}
-    </div>
-</div>
+            // ----- supporting stat tiles -----
+            const stat = (v, l, s) => `<div class="wsum-stat"><div class="v">${v}</div><div class="l">${l}</div>${s ? `<div class="s">${s}</div>` : ''}</div>`;
+            const statsHtml = [
+                stat(cardioMin, 'Cardio Min', `${cardioWk.length} session${cardioWk.length === 1 ? '' : 's'}`),
+                stat(golfWk.length, 'Golf Rounds', golfAvg != null ? `avg ${golfAvg}` : 'no rounds'),
+                stat(avgHrv != null ? avgHrv : '—', 'Avg HRV', avgHrv != null ? (avgHrv > 50 ? 'good recovery' : 'monitor') : ''),
+                stat(curWeight != null ? curWeight.toFixed(1) : '—', 'Weight', curWeight != null ? (wChange != null ? `${wChange > 0 ? '+' : ''}${wChange.toFixed(1)} lb` : `${(curWeight - 225).toFixed(1)} to goal`) : ''),
+                stat(curVis != null ? curVis.toFixed(1) : '—', 'Visceral', 'target < 10'),
+                stat(pagesWk, 'Pages Read', 'this week')
+            ].join('');
 
-<div class="summary-box">
-    <div class="summary-title"><i class="ti ti-golf" style="color:var(--accent); margin-right:6px;"></i>Golf Performance</div>
-    <div class="summary-text">
-        <strong>Rounds Played:</strong> ${thisWeekGolf.length}<br>
-        <strong>Avg Score:</strong> ${thisWeekGolf.length > 0 ? (thisWeekGolf.reduce((sum, g) => sum + g.score, 0) / thisWeekGolf.length).toFixed(0) : '—'}<br>
-        <strong>Swing Power Trend:</strong> ${appData.golf.length > 1 ? 'Tracking metrics from simulator' : 'Need more data'}<br>
-    </div>
-</div>
+            // ----- highlights -----
+            const get = lbl => st.goals.find(g => g.label === lbl) || {};
+            const line = (ok, txt) => `<div class="line"><i class="ti ${ok ? 'ti-circle-check' : 'ti-alert-circle'}" style="color:${ok ? 'var(--success)' : 'var(--warning)'};"></i><span>${txt}</span></div>`;
+            const strengthG = get('Strength'), cardioG = get('Cardio'), sleepG = get('Avg sleep score');
+            const insights = [
+                line(strengthG.metFlag, strengthG.metFlag ? `Hit all ${strengthG.target} strength days — great consistency.` : `${strengthG.cur}/${strengthG.target} strength days. Aim for ${strengthG.target} to keep progression driving.`),
+                line(cardioG.metFlag, cardioG.metFlag ? `${cardioWk.length} cardio sessions (${cardioMin} min) — target met.` : `${cardioG.cur}/${cardioG.target} cardio sessions. One more gets you there.`),
+                line(!!sleepG.metFlag, sleepG.metFlag ? `Sleep averaged ${sleepG.display} — recovery foundation is solid.` : `Avg sleep score ${sleepG.display}. Prioritize sleep to lift readiness.`),
+                line(curVis != null && curVis < 10, curVis != null ? (curVis < 10 ? `Visceral fat ${curVis.toFixed(1)} — below target.` : `Visceral fat ${curVis.toFixed(1)} — cardio + sleep are your best levers.`) : 'Log body composition to track visceral fat.')
+            ].join('');
 
-<div class="summary-box">
-    <div class="summary-title"><i class="ti ti-activity" style="color:var(--accent); margin-right:6px;"></i>Health Metrics</div>
-    <div class="summary-text">
-        <strong>Visceral Fat:</strong> ${latestVisceral}${visSeries.length > 1 ? ` (${(visSeries[visSeries.length - 1].level - visSeries[visSeries.length - 2].level).toFixed(1)} change)` : ''}<br>
-        <strong>Cardio Consistency:</strong> ${thisWeekCardio.length > 2 ? '✓ Good consistency' : 'Increase sessions'}<br>
-        <strong>Training Load:</strong> ${totalCardioMin + (thisWeekStrength * 60)} total minutes<br>
-    </div>
-</div>
+            container.innerHTML = `
+            <div class="wsum">
+                <div class="wsum-head">
+                    <div class="wsum-head-l">
+                        <h2>Weekly Summary</h2>
+                        <div class="wsum-range">${rangeTxt}</div>
+                        <span class="wsum-badge">${st.metCount}/7 goals met${st.perfect ? ' · 🏆 Perfect Week!' : ''}</span>
+                    </div>
+                    <div class="wsum-ring">${perfectRing(st.overall)}</div>
+                </div>
+                <div class="wsum-body">
+                    <div class="wsum-sec">Weekly Goals</div>
+                    <div class="wsum-goals">${goalCards}</div>
+                    <div class="wsum-sec">This Week's Numbers</div>
+                    <div class="wsum-stats">${statsHtml}</div>
+                    <div class="wsum-sec">Highlights</div>
+                    <div class="wsum-insights">${insights}</div>
+                    <div class="wsum-foot">Ludos Mechanicus · generated ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                </div>
+            </div>`;
+        }
 
-<div class="summary-box">
-    <div class="summary-title"><i class="ti ti-bulb" style="color:var(--accent); margin-right:6px;"></i>Key Insights</div>
-    <div class="summary-text">
-        ${thisWeekStrength >= 3 ? '✓ Strong week on strength training' : '⚠ Below strength target (3-4 days ideal)'}<br>
-        ${avgHrv > 50 && thisWeekOura.length > 0 ? '✓ Recovery looks solid - ready for intensity' : '⚠ Monitor recovery metrics'}<br>
-        ${latestVisceral < 13 ? '✓ Visceral fat trending down!' : '⚠ Focus cardio to reduce visceral fat'}<br>
-        ${thisWeekGolf.length > 0 ? `✓ Played ${thisWeekGolf.length} rounds this week` : 'Schedule a round to track power gains'}<br>
-    </div>
-</div>
-            `;
-
-            container.innerHTML = summary;
+        function printSummary() {
+            if (!document.querySelector('#summary-container .wsum')) generateWeeklySummary();
+            setTimeout(() => window.print(), 60);   // let the report render first
         }
 
         function exportSummaryAsText() {
