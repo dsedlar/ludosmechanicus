@@ -1623,7 +1623,20 @@
         }
 
         function saveLocal(data) {
-            localStorage.setItem('golfUltimateData', JSON.stringify(data));
+            data._savedAt = Date.now();   // revision stamp → lets cloud sync avoid clobbering newer local edits
+            const json = JSON.stringify(data);
+            try {
+                localStorage.setItem('golfUltimateData', json);
+            } catch (e) {
+                // Out of space (iOS quota): drop the rolling backup copy and retry once.
+                try {
+                    localStorage.removeItem('golfUltimateData_backup');
+                    localStorage.setItem('golfUltimateData', json);
+                } catch (e2) {
+                    console.error('Local save failed:', e2);
+                    try { setSyncStatus('error'); } catch (_) {}
+                }
+            }
         }
 
         // Keep a rolling local copy of the last-known-good data before any cloud reconcile,
@@ -2321,7 +2334,8 @@
             `;
 
             day.exercises.forEach((ex, idx) => {
-                const isWeight = !ex.bodyweight && !ex.reps.includes('sec') && !ex.reps.includes('stretch') && !ex.reps.includes('circuit') && !ex.reps.includes('AMRAP');
+                const reps = ex.reps || '';
+                const isWeight = !ex.bodyweight && !reps.includes('sec') && !reps.includes('stretch') && !reps.includes('circuit') && !reps.includes('AMRAP');
                 const suggestion = isWeight ? getSuggestedWeight(ex.name) : null;
                 const previous = isWeight ? getPreviousWeight(ex.name) : null;
                 const group = supersetFor(dayKey, ex.name);
@@ -3944,6 +3958,7 @@
 
         // Compare current bests to the stored snapshot; toast anything beaten
         function flagNewPRs() {
+          try {
             const prev = appData.prBests;
             const cur = snapshotPRs();
             if (!prev) { appData.prBests = cur; return; }  // no baseline yet → just set it
@@ -3960,6 +3975,7 @@
             });
             appData.prBests = cur;
             if (beaten.length) showPRToast(beaten);
+          } catch (e) { console.error('PR check skipped:', e); }
         }
 
         function switchPRSub(which, ev) {
@@ -4886,10 +4902,18 @@
             setSyncStatus('connecting');
             userDoc().get().then(doc => {
                 stashLocalBackup();   // keep a local safety copy before taking the cloud version
+                const localRev = (appData && appData._savedAt) || 0;
                 if (doc.exists && doc.data().appData) {
-                    appData = doc.data().appData;     // cloud wins (last device to save wins; deletes propagate)
-                    ensureShape(appData);
-                    saveLocal(appData);
+                    const cloud = doc.data().appData;
+                    if ((cloud._savedAt || 0) >= localRev) {
+                        appData = cloud;              // cloud is same-or-newer → take it (last-write-wins)
+                        ensureShape(appData);
+                        saveLocal(appData);
+                    } else {
+                        // This device has newer unsynced edits — keep them and push up, don't let stale cloud clobber.
+                        ensureShape(appData);
+                        userDoc().set({ appData: appData, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+                    }
                 } else {
                     ensureShape(appData);             // first login → migrate local data UP
                     userDoc().set({
@@ -4904,9 +4928,9 @@
                 unsubscribeSnapshot = userDoc().onSnapshot(snap => {
                     if (snap.metadata.hasPendingWrites) return;   // ignore our own write echo
                     const data = snap.data();
-                    if (data && data.appData) {
+                    if (data && data.appData && (data.appData._savedAt || 0) >= ((appData && appData._savedAt) || 0)) {
                         stashLocalBackup();
-                        appData = data.appData;     // cloud wins — live update from another device
+                        appData = data.appData;     // newer copy from another device → take it
                         ensureShape(appData);
                         saveLocal(appData);
                         refreshUI();
@@ -4947,7 +4971,17 @@
         // A fresh ?v= query string forces the page (and assets) to be re-fetched.
         function forceRefresh() {
             setSyncStatus('connecting');
-            location.replace(location.pathname + '?v=' + Date.now());
+            let navigated = false;
+            const go = () => { if (navigated) return; navigated = true; location.replace(location.pathname + '?v=' + Date.now()); };
+            // Flush any pending edit to the cloud first so a refresh never drops the last change.
+            if (currentUser && db) {
+                clearTimeout(cloudSaveTimer);
+                saveLocal(appData);
+                userDoc().set({ appData: appData, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }).then(go).catch(go);
+                setTimeout(go, 2500);   // fallback if the network hangs
+            } else {
+                go();
+            }
         }
 
         // Local-only fallback if Firebase can't load (e.g. offline)
