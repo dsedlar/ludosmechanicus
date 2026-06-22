@@ -2259,14 +2259,15 @@
             const prev = Array.isArray(list) ? list : [];
             return templateExercises.map(t => {
                 const old = prev.find(e => e.name === t.name) || {};
-                return {
+                const ex = {
                     name: t.name, sets: t.sets, reps: t.reps, rpe: t.rpe,
                     note: t.note || '', cat: t.cat || '',
                     weight: old.weight || 0,
                     actualRpe: (old.actualRpe != null ? old.actualRpe : null),
-                    completed: !!old.completed,
-                    setLogs: Array.isArray(old.setLogs) ? old.setLogs : undefined
+                    completed: !!old.completed
                 };
+                if (Array.isArray(old.setLogs)) ex.setLogs = old.setLogs;   // never assign undefined (breaks Firestore)
+                return ex;
             });
         }
         function reconcileWeek(week) {
@@ -4997,6 +4998,7 @@
             firebase.initializeApp(firebaseConfig);
             auth = firebase.auth();
             db = firebase.firestore();
+            try { db.settings({ ignoreUndefinedProperties: true }); } catch (e) { /* older SDK */ }
             auth.onAuthStateChanged(user => {
                 if (user) {
                     currentUser = user;
