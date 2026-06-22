@@ -4906,13 +4906,15 @@
                 const localRev = (appData && appData._savedAt) || 0;
                 if (doc.exists && doc.data().appData) {
                     const cloud = doc.data().appData;
-                    if ((cloud._savedAt || 0) >= localRev) {
-                        appData = cloud;              // cloud is same-or-newer → take it (last-write-wins)
+                    if ((cloud._savedAt || 0) > localRev) {
+                        appData = cloud;              // cloud is strictly newer → take it (last-write-wins)
                         ensureShape(appData);
                         saveLocal(appData);
                     } else {
-                        // This device has newer unsynced edits — keep them and push up, don't let stale cloud clobber.
+                        // Local is same-or-newer (incl. the unstamped transition) — keep it and push up,
+                        // so a stale cloud copy can never clobber this device's data.
                         ensureShape(appData);
+                        saveLocal(appData);   // stamp _savedAt
                         userDoc().set({ appData: appData, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
                     }
                 } else {
@@ -4929,7 +4931,7 @@
                 unsubscribeSnapshot = userDoc().onSnapshot(snap => {
                     if (snap.metadata.hasPendingWrites) return;   // ignore our own write echo
                     const data = snap.data();
-                    if (data && data.appData && (data.appData._savedAt || 0) >= ((appData && appData._savedAt) || 0)) {
+                    if (data && data.appData && (data.appData._savedAt || 0) > ((appData && appData._savedAt) || 0)) {
                         stashLocalBackup();
                         appData = data.appData;     // newer copy from another device → take it
                         ensureShape(appData);
