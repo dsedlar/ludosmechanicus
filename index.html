@@ -2184,17 +2184,39 @@
             { name: 'Finisher: Burpees', sets: 1, reps: '8-10 min AMRAP', rpe: '8', cat: 'finisher', bodyweight: true }
         ];
 
-        // Swap a single day between its gym workout and the bodyweight routine (preserves gym weights)
-        function toggleWorkoutMode(dayKey) {
+        // Hotel / travel gym: basic dumbbells, medicine balls, a few machines, Peloton + treadmill.
+        const HOTEL_TEMPLATE = [
+            { name: 'Treadmill or Peloton Warm-Up', sets: 1, reps: '5-8 min', rpe: '5', note: 'Easy build to a light sweat', cat: 'finisher' },
+            { name: 'DB Goblet Squat', sets: 4, reps: '8-10', rpe: '7-8', cat: 'strength' },
+            { name: 'DB Romanian Deadlift', sets: 3, reps: '8-10', rpe: '7-8', cat: 'strength' },
+            { name: 'DB Bench or Machine Chest Press', sets: 3, reps: '8-12', rpe: '7-8', cat: 'strength' },
+            { name: 'DB Row or Machine Row', sets: 3, reps: '10-12 ea', rpe: '7-8', cat: 'strength' },
+            { name: 'Med Ball Rotational Slam', sets: 3, reps: '8 ea', rpe: '8-9', note: 'PRIMARY GOLF SWING DRIVER', cat: 'power' },
+            { name: 'Med Ball Overhead Slam', sets: 3, reps: '8', rpe: '8-9', cat: 'power' },
+            { name: 'DB Walking Lunge', sets: 3, reps: '10 ea', rpe: '7', cat: 'strength' },
+            { name: 'DB Suitcase / Farmer Carry', sets: 3, reps: '30-40m', rpe: '7', cat: 'carry' },
+            { name: 'Plank', sets: 3, reps: '45-60 sec', rpe: '7', cat: 'core' },
+            { name: 'Finisher: Peloton or Treadmill Intervals', sets: 1, reps: '8-10 min', rpe: '8', note: '30s hard / 60s easy', cat: 'finisher' }
+        ];
+
+        const WORKOUT_MODES = { bodyweight: BODYWEIGHT_TEMPLATE, hotel: HOTEL_TEMPLATE };
+        function dayWorkoutMode(day) { return day.bodyweight ? 'bodyweight' : (day.hotel ? 'hotel' : 'gym'); }
+
+        // Switch a day between its gym workout and an alternate routine (bodyweight / hotel).
+        // The real gym list is stashed in day.gymExercises so weights + completion survive the swap.
+        function setWorkoutMode(dayKey, mode) {
             const day = appData.currentWeek.days[dayKey];
-            if (!day.bodyweight) {
-                day.gymExercises = day.exercises;   // stash gym list (weights + completion)
-                day.exercises = BODYWEIGHT_TEMPLATE.map(ex => ({ ...ex, cat: ex.cat || '', weight: 0, actualRpe: null, completed: false }));
-                day.bodyweight = true;
+            const cur = dayWorkoutMode(day);
+            if (mode === cur) mode = 'gym';                 // tapping the active mode returns to the gym workout
+            const inAlt = !!day.gymExercises;
+            if (mode === 'gym') {
+                if (inAlt) { day.exercises = day.gymExercises; delete day.gymExercises; }
+                day.bodyweight = false; day.hotel = false;
             } else {
-                day.exercises = day.gymExercises || day.exercises;
-                delete day.gymExercises;
-                day.bodyweight = false;
+                if (!inAlt) day.gymExercises = day.exercises;   // stash the gym list once
+                day.exercises = WORKOUT_MODES[mode].map(ex => ({ ...ex, cat: ex.cat || '', weight: 0, actualRpe: null, completed: false }));
+                day.bodyweight = (mode === 'bodyweight');
+                day.hotel = (mode === 'hotel');
             }
             day.completed = day.exercises.length > 0 && day.exercises.every(e => e.completed);
             if (!day.completed) day.completedDate = null;
@@ -2202,6 +2224,7 @@
             renderWorkout(parseInt(dayKey.replace('day', ''), 10));
             checkWeekCompletion();
         }
+        function toggleWorkoutMode(dayKey) { setWorkoutMode(dayKey, 'bodyweight'); }   // back-compat
 
         function generateWeek(weekNum) {
             const week = {
@@ -2312,7 +2335,7 @@
                 const day = week.days[dk];
                 const tmpl = WORKOUT_TEMPLATE[dk];
                 if (!day || !tmpl) return;
-                if (day.bodyweight) {
+                if (day.gymExercises) {   // in an alt mode (bodyweight/hotel) — reconcile the stashed gym list, leave the alt routine alone
                     if (Array.isArray(day.gymExercises)) day.gymExercises = reconcileDayList(day.gymExercises, tmpl.exercises);
                 } else {
                     day.exercises = reconcileDayList(day.exercises, tmpl.exercises);
@@ -2355,14 +2378,19 @@
                 <div style="margin-bottom: 12px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; flex-wrap: wrap;">
                         <div>
-                            <h3 style="margin: 0; color: var(--text-primary);">${day.name}${day.bodyweight ? ' <span style="color: var(--accent); font-size: 13px; font-weight: 600;">· Bodyweight</span>' : ''}</h3>
+                            <h3 style="margin: 0; color: var(--text-primary);">${day.name}${day.bodyweight ? ' <span style="color: var(--accent); font-size: 13px; font-weight: 600;">· Bodyweight</span>' : (day.hotel ? ' <span style="color: var(--accent); font-size: 13px; font-weight: 600;">· Hotel gym</span>' : '')}</h3>
                             <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
                                 ${day.completed ? '✓ Completed' : 'Not completed today'}
                             </div>
                         </div>
-                        <button class="btn-secondary" style="font-size: 13px; padding: 8px 14px;" onclick="toggleWorkoutMode('${dayKey}')">
-                            <i class="ti ${day.bodyweight ? 'ti-barbell' : 'ti-home'}" style="margin-right: 6px;"></i>${day.bodyweight ? 'Back to gym workout' : 'No weights? Bodyweight'}
-                        </button>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <button class="btn-secondary" style="font-size: 13px; padding: 8px 14px;${day.bodyweight ? ' border-color:var(--accent); color:var(--accent);' : ''}" onclick="setWorkoutMode('${dayKey}', 'bodyweight')">
+                                <i class="ti ${day.bodyweight ? 'ti-barbell' : 'ti-home'}" style="margin-right: 6px;"></i>${day.bodyweight ? 'Back to gym' : 'No weights? Bodyweight'}
+                            </button>
+                            <button class="btn-secondary" style="font-size: 13px; padding: 8px 14px;${day.hotel ? ' border-color:var(--accent); color:var(--accent);' : ''}" onclick="setWorkoutMode('${dayKey}', 'hotel')">
+                                <i class="ti ${day.hotel ? 'ti-barbell' : 'ti-building'}" style="margin-right: 6px;"></i>${day.hotel ? 'Back to gym' : 'Hotel gym'}
+                            </button>
+                        </div>
                     </div>
                     <div style="display:flex; flex-wrap:wrap; gap:6px 14px; margin-bottom:14px; font-size:11px; color:var(--text-secondary);">
                         ${Object.keys(CATEGORY_LABELS).map(k => `<span style="display:inline-flex; align-items:center; gap:5px;"><span style="width:10px; height:10px; border-radius:2px; background:${CATEGORY_COLORS[k]};"></span>${CATEGORY_LABELS[k]}</span>`).join('')}
@@ -2546,7 +2574,7 @@
             // Apply progression: 5-7% increase based on RPE or consistency
             ['day1', 'day2', 'day3', 'day4'].forEach(dayKey => {
                 const srcDay = currentWeek.days[dayKey];
-                const srcExercises = (srcDay.bodyweight && srcDay.gymExercises) ? srcDay.gymExercises : srcDay.exercises;  // use stashed gym weights if on bodyweight
+                const srcExercises = srcDay.gymExercises ? srcDay.gymExercises : srcDay.exercises;  // use stashed gym weights if on an alt (bodyweight/hotel) mode
                 nextWeek.days[dayKey].exercises.forEach((nextEx, idx) => {
                     const currentEx = srcExercises[idx];
                     if (currentEx && currentEx.weight > 0) {
