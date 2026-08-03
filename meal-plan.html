@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Family Meal Plan — Week of August 3</title>
+<style>
+  :root {
+    --green: #2d6a4f;
+    --green-light: #b7e4c7;
+    --green-pale: #f0faf4;
+    --orange: #e07a1f;
+    --orange-light: #fce8cc;
+    --blue: #1d6fa4;
+    --blue-light: #d0eaf7;
+    --purple: #6b21a8;
+    --purple-light: #f3e8ff;
+    --red-light: #fee2e2;
+    --red: #991b1b;
+    --yellow-light: #fff3d6;
+    --yellow: #9a6000;
+    --gray: #4a4a4a;
+    --gray-light: #f7f7f7;
+    --border: #e2e8f0;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    color: var(--gray);
+    background: #fff;
+    line-height: 1.5;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+  }
+
+  h1 { font-size: 1.8rem; color: var(--green); margin-bottom: 4px; }
+  .subtitle { color: #666; font-size: 0.95rem; margin-bottom: 28px; }
+
+  /* KEY */
+  .key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 28px;
+    padding: 14px 16px;
+    background: var(--gray-light);
+    border-radius: 10px;
+  }
+  .key-item { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+  .badge {
+    display: inline-block;
+    border-radius: 12px;
+    padding: 2px 9px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-fish { background: var(--blue-light); color: var(--blue); }
+  .badge-kids { background: var(--yellow-light); color: var(--yellow); }
+  .badge-prep { background: var(--purple-light); color: var(--purple); }
+  .badge-dad  { background: var(--red-light); color: var(--red); }
+  .badge-all  { background: var(--green-light); color: var(--green); }
+  .badge-pizza { background: #fff0e0; color: #b35000; }
+
+  /* STRATEGY BOX */
+  .strategy {
+    background: var(--green-pale);
+    border-left: 4px solid var(--green);
+    border-radius: 0 10px 10px 0;
+    padding: 16px 18px;
+    margin-bottom: 30px;
+    font-size: 0.9rem;
+  }
+  .strategy h2 { font-size: 1rem; color: var(--green); margin-bottom: 8px; }
+  .strategy ul { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+  .strategy ul li::before { content: "→ "; color: var(--green); font-weight: 700; }
+
+  /* DAY CARDS */
+  .week-grid { display: flex; flex-direction: column; gap: 18px; }
+
+  .day-card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+
+  .day-header {
+    background: var(--green);
+    color: white;
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .day-header h2 { font-size: 1.05rem; font-weight: 700; }
+  .day-header .day-badges { display: flex; gap: 6px; }
+
+  .meal-row {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+  .meal-row:last-child { border-bottom: none; }
+
+  .meal-label {
+    background: var(--gray-light);
+    padding: 12px 14px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #666;
+    display: flex;
+    align-items: flex-start;
+    border-right: 1px solid var(--border);
+  }
+
+  .meal-content { padding: 12px 16px; }
+
+  .meal-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; color: #1a1a1a; }
+
+  .meal-detail {
+    font-size: 0.83rem;
+    color: #555;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .who-note {
+    font-size: 0.78rem;
+    margin-top: 4px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .tip {
+    font-size: 0.78rem;
+    color: var(--green);
+    font-style: italic;
+    margin-top: 5px;
+  }
+
+  /* SNACK SECTION */
+  .snack-section {
+    margin-top: 36px;
+  }
+  .snack-section h2 {
+    font-size: 1.3rem;
+    color: var(--yellow);
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--yellow-light);
+  }
+  .snack-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 600px) { .snack-grid { grid-template-columns: 1fr; } }
+
+  .snack-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .snack-card-header {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .snack-am .snack-card-header { background: #fff3d6; color: var(--yellow); }
+  .snack-pm .snack-card-header { background: var(--purple-light); color: var(--purple); }
+
+  .snack-items {
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .snack-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 0.87rem;
+    padding-bottom: 7px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .snack-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .snack-emoji { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+  .snack-text strong { display: block; font-size: 0.88rem; color: #1a1a1a; }
+  .snack-text span { font-size: 0.8rem; color: #666; }
+
+  .snack-note {
+    margin-top: 14px;
+    padding: 12px 16px;
+    background: var(--yellow-light);
+    border-radius: 10px;
+    font-size: 0.85rem;
+    color: var(--yellow);
+    grid-column: 1 / -1;
+  }
+
+  /* SHOPPING LIST */
+  .shop-section { margin-top: 40px; }
+  .shop-section h2 {
+    font-size: 1.3rem;
+    color: var(--green);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--green-light);
+  }
+
+  .shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .shop-category { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+
+  .shop-cat-header { padding: 8px 14px; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+  .sh-proteins .shop-cat-header { background: var(--red-light); color: var(--red); }
+  .sh-produce  .shop-cat-header { background: var(--green-light); color: var(--green); }
+  .sh-dairy    .shop-cat-header { background: var(--blue-light); color: var(--blue); }
+  .sh-pantry   .shop-cat-header { background: var(--orange-light); color: var(--orange); }
+  .sh-pizza    .shop-cat-header { background: #fff0e0; color: #b35000; }
+  .sh-snacks   .shop-cat-header { background: var(--yellow-light); color: var(--yellow); }
+  .sh-sams     .shop-cat-header { background: var(--purple-light); color: var(--purple); }
+
+  .shop-items { padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+
+  .shop-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.87rem;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .shop-item:last-child { border-bottom: none; }
+  .shop-item-name { flex: 1; }
+  .shop-item-qty  { color: #888; font-size: 0.8rem; margin: 0 10px; }
+  .shop-item-price { font-weight: 600; color: var(--green); min-width: 40px; text-align: right; }
+
+  /* BUDGET */
+  .budget-box {
+    margin-top: 24px;
+    background: var(--green-pale);
+    border: 1px solid var(--green-light);
+    border-radius: 12px;
+    padding: 20px 22px;
+  }
+  .budget-box h3 { color: var(--green); font-size: 1rem; margin-bottom: 14px; }
+  .budget-rows { display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem; }
+  .budget-row {
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--green-light);
+  }
+  .budget-row:last-child { border-bottom: none; }
+  .budget-total {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--green);
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 2px solid var(--green);
+  }
+
+  /* TIPS */
+  .tips-section { margin-top: 36px; }
+  .tips-section h2 {
+    font-size: 1.3rem;
+    color: var(--green);
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--green-light);
+  }
+  .tips-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .tip-card { background: var(--gray-light); border-radius: 10px; padding: 14px 16px; font-size: 0.87rem; }
+  .tip-card h4 { color: var(--green); margin-bottom: 5px; font-size: 0.9rem; }
+
+  @media print {
+    body { max-width: 100%; padding: 10px; }
+    .day-card { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🥗 Sedlar Family Meal Plan</h1>
+<p class="subtitle">Week of August 3, 2026 &nbsp;·&nbsp; Family of 5 &nbsp;·&nbsp; Budget: ~$250/week</p>
+
+<!-- KEY -->
+<div class="key">
+  <div class="key-item"><span class="badge badge-fish">🐟 Fish Night</span> whole family eats fish</div>
+  <div class="key-item"><span class="badge badge-kids">👦 Kids</span> kid-friendly focus</div>
+  <div class="key-item"><span class="badge badge-dad">🥩 Dad OMAD</span> big dinner, skip breakfast</div>
+  <div class="key-item"><span class="badge badge-prep">⏱ Prep tip</span> batch / use leftovers</div>
+  <div class="key-item"><span class="badge badge-all">✅ All eat</span> one meal for everyone</div>
+  <div class="key-item"><span class="badge badge-pizza">🍕 Pizza Night</span> made from scratch</div>
+</div>
+
+<!-- ZERO WASTE STRATEGY -->
+<div class="strategy">
+  <h2>♻️ Zero-Waste Ingredient Strategy</h2>
+  <ul>
+    <li>Salmon (buy 2 lb piece) → Tuesday dinner + mom's protein on Wednesday taco night</li>
+    <li>Ground beef (1 lb) → Wednesday tacos only (Saturday is pizza night now)</li>
+    <li>Chicken thighs (Mon) → leftovers become Tuesday lunch for kids &amp; mom</li>
+    <li>Shrimp (1.5 lbs frozen) → Thursday pasta dinner</li>
+    <li>Sunday roasted veggies → cook a big double batch, use Mon–Thu</li>
+    <li>Eggs (2 dozen) → breakfasts all week, scrambles, pancakes, also binder for chicken tenders</li>
+    <li>Greek yogurt (32 oz) → breakfast parfaits all week + AM snacks</li>
+    <li>Bell peppers &amp; broccoli → Mon sheet pan, Thu pasta, Sunday roast, AND pizza toppings Saturday</li>
+    <li>Leftover taco rice (Wed) → Thursday taco bowl lunch, zero waste</li>
+  </ul>
+</div>
+
+<!-- WEEK GRID -->
+<div class="week-grid">
+
+  <!-- MONDAY -->
+  <div class="day-card">
+    <div class="day-header">
+      <h2>Monday</h2>
+      <div class="day-badges">
+        <span class="badge badge-prep">Batch night</span>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Breakfast</div>
+      <div class="meal-content">
+        <div class="meal-title">Protein Pancakes + Fresh Fruit</div>
+        <div class="meal-detail">
+          <span>Dad's recipe — make a double batch, refrigerate extras for Friday morning</span>
+          <span>Served with blueberries or sliced strawberries</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-kids">👦 Kids</span>
+          <span class="badge" style="background:#e8f4f8;color:#1d6fa4;">Mom</span>
+          <em style="font-size:0.78rem;color:#888;">Dad: skip / coffee</em>
+        </div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Lunch</div>
+      <div class="meal-content">
+        <div class="meal-title">Greek Yogurt Parfaits + Apple Slices</div>
+        <div class="meal-detail">
+          <span>Layer Greek yogurt → granola → berries in cups</span>
+          <span>Add cheese cubes or a hard-boiled egg for extra protein for the kids</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-kids">👦 Kids</span>
+          <span class="badge" style="background:#e8f4f8;color:#1d6fa4;">Mom</span>
+        </div>
+        <div class="tip">💡 Hard-boil 6 eggs while making breakfast — use through the week for snacks &amp; lunches</div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Dinner</div>
+      <div class="meal-content">
+        <div class="meal-title">Sheet Pan Chicken Thighs + Roasted Broccoli &amp; Bell Peppers + Rice</div>
+        <div class="meal-detail">
+          <span>Season chicken with olive oil, garlic powder, paprika, salt — roast at 425°F for 25 min</span>
+          <span>Toss broccoli + peppers with oil and salt, roast same pan (last 15 min)</span>
+          <span>Rice cooker does the rice hands-free — cook extra for Thursday taco bowls</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-dad">🥩 Dad: big portion + extra veg</span>
+          <span class="badge badge-kids">👦 Kids</span>
+          <em style="font-size:0.78rem;color:#888;">Mom: bake a 6-oz salmon in same oven, different pan — 12 min</em>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TUESDAY -->
+  <div class="day-card">
+    <div class="day-header">
+      <h2>Tuesday</h2>
+      <div class="day-badges">
+        <span class="badge badge-fish">🐟 Fish Night</span>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Breakfast</div>
+      <div class="meal-content">
+        <div class="meal-title">Scrambled Eggs + Toast + Banana</div>
+        <div class="meal-detail">
+          <span>Soft scrambled eggs in butter — kids love them simple</span>
+          <span>Whole wheat toast + banana or any fruit on hand</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-kids">👦 Kids</span>
+          <span class="badge" style="background:#e8f4f8;color:#1d6fa4;">Mom</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Lunch</div>
+      <div class="meal-content">
+        <div class="meal-title">Leftover Chicken + Rice from Monday + Baby Carrots</div>
+        <div class="meal-detail">
+          <span>Reheat in microwave — quick and zero prep</span>
+          <span>Baby carrots with ranch or hummus on the side</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-kids">👦 Kids</span>
+          <span class="badge" style="background:#e8f4f8;color:#1d6fa4;">Mom</span>
+          <span class="badge badge-prep">⏱ Leftovers</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Dinner</div>
+      <div class="meal-content">
+        <div class="meal-title">Honey Garlic Salmon + Roasted Asparagus + Rice</div>
+        <div class="meal-detail">
+          <span>Mix 2 tbsp honey, 2 cloves garlic, 1 tbsp soy sauce — brush on salmon</span>
+          <span>Bake at 400°F for 12–14 min; asparagus same oven last 8 min with oil + salt</span>
+          <span>Kids' portions: plain butter salmon with no glaze if they're skeptical</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-fish">🐟 All eat</span>
+          <span class="badge badge-dad">🥩 Dad: big portion + extra veg</span>
+        </div>
+        <div class="tip">💡 Buy a 2 lb fillet — use half tonight, reserve half for mom's salmon tacos Wednesday</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEDNESDAY -->
+  <div class="day-card">
+    <div class="day-header">
+      <h2>Wednesday</h2>
+      <div class="day-badges">
+        <span class="badge badge-kids">👦 Kids build their own</span>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Breakfast</div>
+      <div class="meal-content">
+        <div class="meal-title">Overnight Oats with Berries</div>
+        <div class="meal-detail">
+          <span>Prep Tuesday night: oats + milk + chia seeds + honey in mason jars</span>
+          <span>Top with fresh berries in the morning — zero cooking</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-kids">👦 Kids</span>
+          <span class="badge" style="background:#e8f4f8;color:#1d6fa4;">Mom</span>
+        </div>
+        <div class="tip">💡 5-min prep the night before = zero morning effort</div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Lunch</div>
+      <div class="meal-content">
+        <div class="meal-title">Cheese Quesadillas + Apple Slices + Carrots</div>
+        <div class="meal-detail">
+          <span>Flour tortilla + shredded cheddar, 3 min on a skillet per side</span>
+          <span>Cut into triangles — kids think it's fun</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-kids">👦 Kids</span>
+          <span class="badge" style="background:#e8f4f8;color:#1d6fa4;">Mom: add spinach + black beans to hers</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Dinner</div>
+      <div class="meal-content">
+        <div class="meal-title">Taco Night — Build Your Own</div>
+        <div class="meal-detail">
+          <span><strong>Ground beef tacos:</strong> Brown 1 lb beef + taco seasoning (10 min) — kids and dad</span>
+          <span><strong>Salmon tacos:</strong> Flake leftover Tuesday salmon into warm tortillas — mom</span>
+          <span>Toppings bar: shredded cheese, sour cream, salsa, lettuce, lime</span>
+          <span>Cook extra rice alongside — use tomorrow for taco bowls</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-dad">🥩 Dad: beef tacos + salad</span>
+          <span class="badge badge-kids">👦 Kids: beef + cheese, build their own</span>
+          <span class="badge badge-fish">🐟 Mom: salmon tacos</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THURSDAY -->
+  <div class="day-card">
+    <div class="day-header">
+      <h2>Thursday</h2>
+      <div class="day-badges">
+        <span class="badge badge-fish">🐟 Fish Night</span>
+        <span class="badge badge-kids">👦 Kids love pasta</span>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Breakfast</div>
+      <div class="meal-content">
+        <div class="meal-title">Yogurt + Granola + Fresh Fruit</div>
+        <div class="meal-detail">
+          <span>Greek yogurt, granola, sliced banana or berries — quick and no cook</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-kids">👦 Kids</span>
+          <span class="badge" style="background:#e8f4f8;color:#1d6fa4;">Mom</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Lunch</div>
+      <div class="meal-content">
+        <div class="meal-title">Taco Bowls (Leftover Wednesday)</div>
+        <div class="meal-detail">
+          <span>Leftover taco meat over Wednesday's extra rice + cheese + salsa</span>
+          <span>Zero cooking — 3 min reheat</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-kids">👦 Kids</span>
+          <span class="badge" style="background:#e8f4f8;color:#1d6fa4;">Mom: rice + beans + cheese bowl</span>
+          <span class="badge badge-prep">⏱ Leftovers</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Dinner</div>
+      <div class="meal-content">
+        <div class="meal-title">Garlic Butter Shrimp Pasta</div>
+        <div class="meal-detail">
+          <span>Boil pasta (10 min); sauté shrimp in butter + garlic + lemon juice (5 min); toss together</span>
+          <span>Add broccoli florets to pasta water last 3 min — one pot, one pan</span>
+          <span>Top with parmesan — total active time: 18 min</span>
+          <span>Kids: noodles with butter + parmesan if shrimp is a battle tonight</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-fish">🐟 All eat</span>
+          <span class="badge badge-dad">🥩 Dad: extra shrimp, big bowl</span>
+        </div>
+        <div class="tip">💡 Fastest full dinner of the week — use on your most hectic evening</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRIDAY -->
+  <div class="day-card">
+    <div class="day-header">
+      <h2>Friday</h2>
+      <div class="day-badges">
+        <span class="badge badge-kids">👦 Kids' favorite</span>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Breakfast</div>
+      <div class="meal-content">
+        <div class="meal-title">Protein Pancakes (Monday batch) + Fruit</div>
+        <div class="meal-detail">
+          <span>Reheat Monday's saved pancakes — 60 seconds in the microwave</span>
+          <span>Serve with sliced fruit or yogurt on the side</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-kids">👦 Kids</span>
+          <span class="badge" style="background:#e8f4f8;color:#1d6fa4;">Mom</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Lunch</div>
+      <div class="meal-content">
+        <div class="meal-title">Grilled Cheese + Tomato Soup</div>
+        <div class="meal-detail">
+          <span>Kroger canned tomato soup + buttered grilled cheese on a skillet</span>
+          <span>Cut sandwiches into triangles or fun shapes for the 3-year-old</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-kids">👦 Kids love this</span>
+          <span class="badge" style="background:#e8f4f8;color:#1d6fa4;">Mom</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Dinner</div>
+      <div class="meal-content">
+        <div class="meal-title">Homemade Chicken Tenders + Oven Sweet Potato Fries</div>
+        <div class="meal-detail">
+          <span>Chicken breast strips → dip in egg → seasoned breadcrumbs → bake 425°F for 18 min</span>
+          <span>Sweet potato fries: slice thin, oil + salt, same oven 20 min (put in first)</span>
+          <span>Dipping sauces: ketchup, honey mustard — let kids go wild</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-dad">🥩 Dad: tenders + big salad</span>
+          <span class="badge badge-kids">👦 Kids: their absolute favorite!</span>
+          <span class="badge badge-fish">🐟 Mom: tilapia fillet (same oven, 12 min) + sweet potato fries</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SATURDAY -->
+  <div class="day-card">
+    <div class="day-header">
+      <h2>Saturday</h2>
+      <div class="day-badges">
+        <span class="badge badge-pizza">🍕 Pizza Night</span>
+        <span class="badge badge-prep">Weekend — more time</span>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Breakfast</div>
+      <div class="meal-content">
+        <div class="meal-title">Weekend Eggs + Turkey Bacon + Fruit Bowl</div>
+        <div class="meal-detail">
+          <span>Scrambled or over-easy eggs — make a big skillet for everyone</span>
+          <span>Turkey bacon in the oven at 400°F for 15 min, no mess</span>
+          <span>Cut fruit bowl: melon, grapes, strawberries — kids snack on it all morning</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-all">✅ Dad joins (weekend!)</span>
+          <span class="badge badge-kids">👦 Kids</span>
+          <span class="badge" style="background:#e8f4f8;color:#1d6fa4;">Mom</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Lunch</div>
+      <div class="meal-content">
+        <div class="meal-title">Fridge Clean-Out — Sandwich Bar or Leftovers</div>
+        <div class="meal-detail">
+          <span>Pull out whatever's left: deli turkey, cheese, bread, fruit, yogurt, carrot sticks</span>
+          <span>Saturday lunch = kitchen clean-out day — nothing wasted before pizza night</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-prep">⏱ Zero waste</span>
+          <span class="badge badge-all">✅ All</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Pizza Prep</div>
+      <div class="meal-content">
+        <div class="meal-title">Make Dough in the Afternoon (while kids nap / play)</div>
+        <div class="meal-detail">
+          <span>Combine 2¼ tsp yeast + 1 cup warm water + 1 tsp sugar — let sit 5 min until foamy</span>
+          <span>Mix in 3 cups flour + 1 tsp salt + 2 tbsp olive oil — knead 8 min, or use stand mixer</span>
+          <span>Cover with a towel, let rise 1–2 hours at room temperature — then it's ready</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-pizza">🍕 Hands-off rise time = free afternoon</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Dinner</div>
+      <div class="meal-content">
+        <div class="meal-title">🍕 Homemade Pizza Night — Everyone Builds Their Own</div>
+        <div class="meal-detail">
+          <span>Divide risen dough into portions — 1 big for dad, 1 medium for mom, 3 small for kids</span>
+          <span>Each person spreads their own sauce and picks toppings from the spread</span>
+          <span><strong>Dad:</strong> classic pepperoni + mozzarella, or whatever you're craving</span>
+          <span><strong>Mom:</strong> olive oil base + shrimp + roasted peppers + fresh mozzarella</span>
+          <span><strong>Kids:</strong> red sauce + cheese — they'll add whatever they feel brave about</span>
+          <span>Bake at 475–500°F for 8–10 min on a preheated sheet pan or pizza stone</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-all">✅ All eat — everyone loves this</span>
+          <span class="badge badge-kids">👦 Kids build their own = no complaints</span>
+          <span class="badge badge-fish">🐟 Mom: shrimp + veggie pizza</span>
+        </div>
+        <div class="tip">💡 This is the weekly tradition — make it fun. Let the 7-year-old stretch their own dough.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUNDAY -->
+  <div class="day-card">
+    <div class="day-header">
+      <h2>Sunday</h2>
+      <div class="day-badges">
+        <span class="badge badge-fish">🐟 Fish Night</span>
+        <span class="badge badge-prep">Prep Day</span>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Breakfast</div>
+      <div class="meal-content">
+        <div class="meal-title">Avocado Toast + Eggs + Fruit</div>
+        <div class="meal-detail">
+          <span>Whole grain toast + smashed avocado + fried or poached egg on top</span>
+          <span>Kids version: avocado on toast with a pinch of salt + fruit on the side</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-kids">👦 Kids</span>
+          <span class="badge" style="background:#e8f4f8;color:#1d6fa4;">Mom</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Lunch</div>
+      <div class="meal-content">
+        <div class="meal-title">Buttered Noodles + Parmesan (kids) / Pasta with Veggies (adults)</div>
+        <div class="meal-detail">
+          <span>Boil one pot of pasta — pull kids' portion first, before adding anything</span>
+          <span>Adults: toss with olive oil, garlic, roasted veg from the week, parmesan</span>
+          <span>Kids: butter + parmesan — happy kids, no battle</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-kids">👦 Kids love it</span>
+          <span class="badge" style="background:#e8f4f8;color:#1d6fa4;">Mom</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="meal-row">
+      <div class="meal-label">Dinner + Prep</div>
+      <div class="meal-content">
+        <div class="meal-title">Lemon Herb Cod + Big Roasted Vegetable Sheet Pan</div>
+        <div class="meal-detail">
+          <span>Cod: olive oil + lemon + garlic + dried herbs — bake at 400°F for 12–15 min</span>
+          <span>Double-batch roasted veg: broccoli, bell peppers, zucchini — this feeds into Mon &amp; Tue</span>
+          <span><strong>While it's in the oven:</strong> marinate Monday's chicken, hard-boil 6 eggs for the week</span>
+        </div>
+        <div class="who-note">
+          <span class="badge badge-fish">🐟 All eat</span>
+          <span class="badge badge-dad">🥩 Dad: big piece of cod + extra veg</span>
+          <span class="badge badge-prep">⏱ Roasted veg used Mon–Tue next week</span>
+        </div>
+        <div class="tip">💡 30 min of Sunday effort saves you 30 min across 4 weeknights</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end week-grid -->
+
+<!-- SNACK SECTION -->
+<div class="snack-section">
+  <h2>🍎 Kids' Daily Snack Rotation</h2>
+  <div class="snack-grid">
+
+    <div class="snack-card snack-am">
+      <div class="snack-card-header">☀️ Morning Snack (around 10 AM)</div>
+      <div class="snack-items">
+        <div class="snack-item">
+          <span class="snack-emoji">🍎</span>
+          <div class="snack-text">
+            <strong>Apple slices + peanut butter</strong>
+            <span>Protein + fiber — keeps them full until lunch</span>
+          </div>
+        </div>
+        <div class="snack-item">
+          <span class="snack-emoji">🧀</span>
+          <div class="snack-text">
+            <strong>String cheese + grapes</strong>
+            <span>Grab-and-go, no prep. Sam's Club cheese sticks are great for this.</span>
+          </div>
+        </div>
+        <div class="snack-item">
+          <span class="snack-emoji">🥚</span>
+          <div class="snack-text">
+            <strong>Hard-boiled egg + banana</strong>
+            <span>Use the batch you boiled Monday morning — peel and serve</span>
+          </div>
+        </div>
+        <div class="snack-item">
+          <span class="snack-emoji">🫐</span>
+          <div class="snack-text">
+            <strong>Yogurt cup + berries</strong>
+            <span>Greek yogurt individual cup with a handful of blueberries or strawberries</span>
+          </div>
+        </div>
+        <div class="snack-item">
+          <span class="snack-emoji">🥞</span>
+          <div class="snack-text">
+            <strong>Mini protein pancake (leftover)</strong>
+            <span>Any leftover from Monday or Friday batch — reheat in 30 seconds</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="snack-card snack-pm">
+      <div class="snack-card-header">🌤 Afternoon Snack (around 3 PM)</div>
+      <div class="snack-items">
+        <div class="snack-item">
+          <span class="snack-emoji">🥕</span>
+          <div class="snack-text">
+            <strong>Baby carrots + ranch or hummus</strong>
+            <span>Pre-portion into little cups — kids eat more when it's already ready</span>
+          </div>
+        </div>
+        <div class="snack-item">
+          <span class="snack-emoji">🍌</span>
+          <div class="snack-text">
+            <strong>Banana + handful of granola</strong>
+            <span>Simple, filling, no prep — great before active play</span>
+          </div>
+        </div>
+        <div class="snack-item">
+          <span class="snack-emoji">🧇</span>
+          <div class="snack-text">
+            <strong>Crackers + cheese slices</strong>
+            <span>Whole grain crackers with a couple slices of cheddar</span>
+          </div>
+        </div>
+        <div class="snack-item">
+          <span class="snack-emoji">🍓</span>
+          <div class="snack-text">
+            <strong>Fruit pouch + cheese stick</strong>
+            <span>Sam's Club buys these in bulk — perfectly portioned, the 3-year-old can self-serve</span>
+          </div>
+        </div>
+        <div class="snack-item">
+          <span class="snack-emoji">🌽</span>
+          <div class="snack-text">
+            <strong>Celery or cucumber slices + peanut butter</strong>
+            <span>Ants on a log if you're feeling fun — raisins on peanut butter celery</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="snack-note">
+      💡 <strong>Snack strategy:</strong> Pre-portion Monday's hard-boiled eggs, wash and cut fruit, and fill small containers with carrots + hummus all at once — takes 10 minutes and the whole week's snacking is essentially on autopilot. The 3-year-old and 5-year-old can grab fruit pouches and cheese sticks independently, which gives you a few minutes of peace in the afternoons.
+    </div>
+
+  </div>
+</div>
+
+<!-- SHOPPING LIST -->
+<div class="shop-section">
+  <h2>🛒 Weekly Shopping List — Kroger + Sam's Club</h2>
+
+  <div class="shop-grid">
+
+    <!-- PROTEINS -->
+    <div class="shop-category sh-proteins">
+      <div class="shop-cat-header">🥩 Proteins</div>
+      <div class="shop-items">
+        <div class="shop-item">
+          <span class="shop-item-name">Chicken thighs (bone-in, skin-on)</span>
+          <span class="shop-item-qty">3 lb</span>
+          <span class="shop-item-price">$8</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Chicken breast (for tenders)</span>
+          <span class="shop-item-qty">1.5 lb</span>
+          <span class="shop-item-price">$9</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Salmon fillet (fresh or frozen)</span>
+          <span class="shop-item-qty">2 lb</span>
+          <span class="shop-item-price">$18</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Shrimp (frozen, peeled &amp; deveined)</span>
+          <span class="shop-item-qty">1.5 lb</span>
+          <span class="shop-item-price">$12</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Tilapia or cod fillet (mom — Friday)</span>
+          <span class="shop-item-qty">1 lb</span>
+          <span class="shop-item-price">$7</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Ground beef 85/15</span>
+          <span class="shop-item-qty">1 lb</span>
+          <span class="shop-item-price">$7</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Eggs (large)</span>
+          <span class="shop-item-qty">2 dozen</span>
+          <span class="shop-item-price">$8</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Turkey bacon</span>
+          <span class="shop-item-qty">1 pkg</span>
+          <span class="shop-item-price">$5</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRODUCE -->
+    <div class="shop-category sh-produce">
+      <div class="shop-cat-header">🥦 Produce</div>
+      <div class="shop-items">
+        <div class="shop-item">
+          <span class="shop-item-name">Broccoli crowns</span>
+          <span class="shop-item-qty">2 heads</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Asparagus</span>
+          <span class="shop-item-qty">1 bunch</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Bell peppers (assorted)</span>
+          <span class="shop-item-qty">5 peppers</span>
+          <span class="shop-item-price">$6</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Zucchini</span>
+          <span class="shop-item-qty">2 medium</span>
+          <span class="shop-item-price">$3</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Sweet potatoes</span>
+          <span class="shop-item-qty">2 lb</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Baby carrots</span>
+          <span class="shop-item-qty">2 lb bag</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Celery</span>
+          <span class="shop-item-qty">1 bunch</span>
+          <span class="shop-item-price">$2</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Avocados</span>
+          <span class="shop-item-qty">3 ripe</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Bananas</span>
+          <span class="shop-item-qty">1 bunch</span>
+          <span class="shop-item-price">$2</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Strawberries or blueberries</span>
+          <span class="shop-item-qty">2 pints</span>
+          <span class="shop-item-price">$9</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Grapes</span>
+          <span class="shop-item-qty">1.5 lb bag</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Apples (Gala or Honeycrisp)</span>
+          <span class="shop-item-qty">3 lb bag</span>
+          <span class="shop-item-price">$5</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Lemons</span>
+          <span class="shop-item-qty">4</span>
+          <span class="shop-item-price">$3</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Garlic (head)</span>
+          <span class="shop-item-qty">1 head</span>
+          <span class="shop-item-price">$1</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Romaine / mixed greens</span>
+          <span class="shop-item-qty">1 bag</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Fresh mozzarella (pizza)</span>
+          <span class="shop-item-qty">8 oz ball</span>
+          <span class="shop-item-price">$5</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Fresh basil (pizza garnish)</span>
+          <span class="shop-item-qty">small pack</span>
+          <span class="shop-item-price">$2</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DAIRY -->
+    <div class="shop-category sh-dairy">
+      <div class="shop-cat-header">🧀 Dairy</div>
+      <div class="shop-items">
+        <div class="shop-item">
+          <span class="shop-item-name">Greek yogurt (plain, full fat)</span>
+          <span class="shop-item-qty">32 oz</span>
+          <span class="shop-item-price">$7</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Shredded cheddar cheese</span>
+          <span class="shop-item-qty">16 oz</span>
+          <span class="shop-item-price">$6</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Shredded mozzarella (pizza)</span>
+          <span class="shop-item-qty">16 oz</span>
+          <span class="shop-item-price">$6</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Parmesan (grated)</span>
+          <span class="shop-item-qty">small container</span>
+          <span class="shop-item-price">$5</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Butter (unsalted)</span>
+          <span class="shop-item-qty">1 lb</span>
+          <span class="shop-item-price">$5</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Milk (whole)</span>
+          <span class="shop-item-qty">1 gallon</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Sour cream</span>
+          <span class="shop-item-qty">8 oz</span>
+          <span class="shop-item-price">$3</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PIZZA PANTRY -->
+    <div class="shop-category sh-pizza">
+      <div class="shop-cat-header">🍕 Pizza Night Staples</div>
+      <div class="shop-items">
+        <div class="shop-item">
+          <span class="shop-item-name">All-purpose flour</span>
+          <span class="shop-item-qty">5 lb bag</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Active dry yeast</span>
+          <span class="shop-item-qty">3-pack</span>
+          <span class="shop-item-price">$3</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Pizza/marinara sauce (jar)</span>
+          <span class="shop-item-qty">24 oz</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Pepperoni (for dad / kids)</span>
+          <span class="shop-item-qty">6 oz pkg</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Olive oil (pizza dough)</span>
+          <span class="shop-item-qty">if needed</span>
+          <span class="shop-item-price">$7</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANTRY -->
+    <div class="shop-category sh-pantry">
+      <div class="shop-cat-header">🏪 Pantry &amp; Dry Goods</div>
+      <div class="shop-items">
+        <div class="shop-item">
+          <span class="shop-item-name">Pasta (spaghetti or penne)</span>
+          <span class="shop-item-qty">2 lb</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Long-grain white rice</span>
+          <span class="shop-item-qty">2 lb</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Flour tortillas (8 ct)</span>
+          <span class="shop-item-qty">2 packs</span>
+          <span class="shop-item-price">$6</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Taco seasoning</span>
+          <span class="shop-item-qty">1 packet</span>
+          <span class="shop-item-price">$2</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Salsa (jar)</span>
+          <span class="shop-item-qty">16 oz</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Whole grain bread (loaf)</span>
+          <span class="shop-item-qty">1 loaf</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Breadcrumbs (Italian)</span>
+          <span class="shop-item-qty">1 canister</span>
+          <span class="shop-item-price">$3</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Canned tomato soup</span>
+          <span class="shop-item-qty">2 cans</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Granola</span>
+          <span class="shop-item-qty">12 oz</span>
+          <span class="shop-item-price">$5</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Rolled oats</span>
+          <span class="shop-item-qty">42 oz</span>
+          <span class="shop-item-price">$5</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Honey</span>
+          <span class="shop-item-qty">12 oz</span>
+          <span class="shop-item-price">$5</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Peanut butter</span>
+          <span class="shop-item-qty">16 oz</span>
+          <span class="shop-item-price">$5</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Whole grain crackers</span>
+          <span class="shop-item-qty">1 box</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Soy sauce</span>
+          <span class="shop-item-qty">small bottle</span>
+          <span class="shop-item-price">$3</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Hummus</span>
+          <span class="shop-item-qty">10 oz</span>
+          <span class="shop-item-price">$4</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Protein pancake mix</span>
+          <span class="shop-item-qty">1 box</span>
+          <span class="shop-item-price">$9</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SNACK ITEMS -->
+    <div class="shop-category sh-snacks">
+      <div class="shop-cat-header">🍎 Kids' Snack Items</div>
+      <div class="shop-items">
+        <div class="shop-item">
+          <span class="shop-item-name">String cheese sticks</span>
+          <span class="shop-item-qty">12 ct (or Sam's)</span>
+          <span class="shop-item-price">$6</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Fruit pouches (applesauce style)</span>
+          <span class="shop-item-qty">8 ct (or Sam's)</span>
+          <span class="shop-item-price">$6</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Ranch dressing (dipping)</span>
+          <span class="shop-item-qty">small bottle</span>
+          <span class="shop-item-price">$3</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Raisins (ants on a log)</span>
+          <span class="shop-item-qty">small box</span>
+          <span class="shop-item-price">$3</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SAM'S CLUB -->
+    <div class="shop-category sh-sams">
+      <div class="shop-cat-header">🏬 Sam's Club (Monthly Bulk)</div>
+      <div class="shop-items">
+        <div class="shop-item">
+          <span class="shop-item-name">Frozen shrimp (large bag)</span>
+          <span class="shop-item-qty">3–5 lb</span>
+          <span class="shop-item-price">~$30</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Frozen chicken breast</span>
+          <span class="shop-item-qty">6–8 lb</span>
+          <span class="shop-item-price">~$22</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Greek yogurt (multipack)</span>
+          <span class="shop-item-qty">individual cups</span>
+          <span class="shop-item-price">~$15</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Eggs (3 dozen)</span>
+          <span class="shop-item-qty">36 ct</span>
+          <span class="shop-item-price">~$12</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Olive oil (big jug)</span>
+          <span class="shop-item-qty">2 L</span>
+          <span class="shop-item-price">~$16</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Rice (large bag)</span>
+          <span class="shop-item-qty">25 lb</span>
+          <span class="shop-item-price">~$18</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">String cheese (bulk)</span>
+          <span class="shop-item-qty">48 ct</span>
+          <span class="shop-item-price">~$14</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Kids' fruit pouches (bulk)</span>
+          <span class="shop-item-qty">variety 30+ ct</span>
+          <span class="shop-item-price">~$18</span>
+        </div>
+        <div class="shop-item">
+          <span class="shop-item-name">Peanut butter (2-pack)</span>
+          <span class="shop-item-qty">2 × 40 oz</span>
+          <span class="shop-item-price">~$12</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BUDGET SUMMARY -->
+  <div class="budget-box">
+    <h3>💰 Weekly Budget Summary</h3>
+    <div class="budget-rows">
+      <div class="budget-row">
+        <span>Proteins (Kroger)</span>
+        <span>~$74</span>
+      </div>
+      <div class="budget-row">
+        <span>Produce</span>
+        <span>~$62</span>
+      </div>
+      <div class="budget-row">
+        <span>Dairy</span>
+        <span>~$36</span>
+      </div>
+      <div class="budget-row">
+        <span>Pizza Staples</span>
+        <span>~$22</span>
+      </div>
+      <div class="budget-row">
+        <span>Pantry &amp; Dry Goods</span>
+        <span>~$68</span>
+      </div>
+      <div class="budget-row">
+        <span>Kids' Snack Items</span>
+        <span>~$18</span>
+      </div>
+      <div class="budget-row budget-total">
+        <span>Estimated Weekly Total (Kroger)</span>
+        <span>~$242</span>
+      </div>
+      <div class="budget-row" style="font-size:0.85rem; color:#666;">
+        <span>Sam's Club bulk (amortized ~$130/mo ÷ 4 weeks)</span>
+        <span>+~$33</span>
+      </div>
+      <div class="budget-row budget-total">
+        <span>Blended Weekly Average</span>
+        <span>~$275</span>
+      </div>
+      <div class="budget-row" style="font-size:0.85rem; color:var(--green);">
+        <span>Monthly total (with pantry staples stocked)</span>
+        <span>~$960–$990 ✅ under $1,000</span>
+      </div>
+      <div class="budget-row" style="font-size:0.8rem; color:#888;">
+        <span>Note: flour, yeast, olive oil, PB, oats last multiple weeks — weekly cost drops after first shop</span>
+        <span></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TIPS -->
+<div class="tips-section">
+  <h2>⚡ Quick Tips for the Week</h2>
+  <div class="tips-grid">
+    <div class="tip-card">
+      <h4>Sunday Prep (30 min)</h4>
+      <p>Hard-boil 6 eggs, marinate Monday's chicken thighs, roast a double batch of veggies. Cuts active cooking time on your hardest weeknights down to nearly zero prep.</p>
+    </div>
+    <div class="tip-card">
+      <h4>Dad's OMAD Strategy</h4>
+      <p>Every dinner is protein-forward and sized up for you. Add an extra serving of whatever protein is on the menu and pile on the roasted vegetables — you're eating one great meal a day, make it count.</p>
+    </div>
+    <div class="tip-card">
+      <h4>Kid Picky Eater Hack</h4>
+      <p>Autonomy kills complaints. Taco night (Wed), pizza build (Sat), and tenders + dipping (Fri) all let them choose — and they almost always eat more when they built it themselves.</p>
+    </div>
+    <div class="tip-card">
+      <h4>Mom's Pescatarian Nights</h4>
+      <p>On chicken/beef nights (Mon, Wed, Fri), a 6–8 oz piece of fish goes in the same oven, same temperature. 5 extra minutes, zero extra dishes, no separate "mom meal" drama.</p>
+    </div>
+    <div class="tip-card">
+      <h4>Saturday Pizza Timing</h4>
+      <p>Make dough mid-afternoon during downtime. The 1–2 hour rise is hands-off. By dinner time it's ready, and letting the 7-year-old stretch their own dough round is genuinely fun — they'll ask for this every week.</p>
+    </div>
+    <div class="tip-card">
+      <h4>Snack Prep Shortcut</h4>
+      <p>Monday morning: wash all fruit, fill 5 small containers with carrots + hummus, set out cheese sticks. Done for the week. The 3-year-old can grab independently — that's a few minutes back in your afternoon.</p>
+    </div>
+    <div class="tip-card">
+      <h4>Freshness Order</h4>
+      <p>Use asparagus (Tue) and fresh greens early. Bell peppers, broccoli, zucchini hold all week. This means zero sad produce by Friday — and the Sunday roast cleans up whatever remains.</p>
+    </div>
+    <div class="tip-card">
+      <h4>Kroger App</h4>
+      <p>Check digital coupons before shopping. Salmon, chicken breast, and shrimp rotate through deals regularly. That alone can save $15–25/week on your biggest cost category.</p>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

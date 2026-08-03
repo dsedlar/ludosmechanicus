@@ -862,6 +862,7 @@
             <button class="tab-btn" onclick="switchTab('cardio')">Cardio</button>
             <button class="tab-btn" onclick="switchTab('reading')">Reading</button>
             <button class="tab-btn" onclick="switchTab('fasting')">Fasting</button>
+            <button class="tab-btn" onclick="switchTab('meals')">Meals</button>
             <button class="tab-btn" onclick="switchTab('golf')">Golf</button>
             <button class="tab-btn" onclick="switchTab('summary')">Weekly Summary</button>
             <button class="tab-btn" onclick="switchTab('prs')">PRs</button>
@@ -1528,6 +1529,14 @@
             </div>
         </div>
 
+        <!-- MEALS -->
+        <div id="meals" class="tab-content">
+            <div class="section" style="padding:12px;">
+                <div class="section-title"><div class="section-icon"><i class="ti ti-salad"></i></div>Family Meal Plan</div>
+                <iframe id="meal-frame" src="./meal-plan.html" title="Family Meal Plan" onload="resizeMealFrame()" scrolling="no" style="width:100%; border:0; border-radius:12px; background:#fff; display:block; min-height:640px;"></iframe>
+            </div>
+        </div>
+
         <!-- PERSONAL RECORDS -->
         <div id="prs" class="tab-content">
             <div class="section">
@@ -1724,8 +1733,35 @@
                 if (tabName === 'reading') renderReading();
                 if (tabName === 'fasting') renderFasting();
                 if (tabName === 'dashboard') renderDashboard();
+                if (tabName === 'meals') resizeMealFrame();
             }, 100);
         }
+
+        // Grow the embedded meal-plan frame to its content height (same-origin, so it scrolls with the page)
+        function resizeMealFrame() {
+            const f = document.getElementById('meal-frame');
+            if (!f || !f.contentWindow || !f.offsetWidth) return;   // skip while the tab is hidden (0 width → the plan lays out absurdly tall)
+            try {
+                // Measure the true content bottom (last child) — immune to the inner <html> stretching to fill the iframe.
+                const body = f.contentWindow.document.body;
+                let h = 0;
+                for (const el of body.children) { const b = el.offsetTop + el.offsetHeight; if (b > h) h = b; }
+                const pad = parseInt(f.contentWindow.getComputedStyle(body).paddingBottom) || 0;
+                if (h > 0) f.style.height = (h + pad + 24) + 'px';
+            } catch (e) { /* cross-origin (shouldn't happen — same site) */ }
+        }
+        window.addEventListener('resize', resizeMealFrame);
+        // Re-measure whenever the frame's WIDTH changes (e.g. tab first shown 0→full width) — self-corrects the height.
+        (function () {
+            const f = document.getElementById('meal-frame');
+            if (f && 'ResizeObserver' in window) {
+                let lastW = -1;
+                new ResizeObserver(entries => {
+                    const w = Math.round(entries[0].contentRect.width);
+                    if (w !== lastW && w > 0) { lastW = w; resizeMealFrame(); }
+                }).observe(f);
+            }
+        })();
 
         // ============ OURA API FUNCTIONS ============
         function saveOuraToken() {
