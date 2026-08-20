@@ -2612,6 +2612,8 @@
                 `;
             }
 
+            html += `<button onclick="clearThisWeek()" style="display:block; margin:12px auto 0; background:none; border:none; color:var(--text-secondary); font-size:12px; cursor:pointer; text-decoration:underline;">Clear this week's log (redo, no progression)</button>`;
+
             document.getElementById('week-completion-display').innerHTML = html;
         }
 
@@ -2704,6 +2706,22 @@
             showMessage('workout-display', 'success', msg);
         }
         function completeWeekAndProgress() { startNextWeek(); }   // back-compat alias
+
+        // Blank the current week without progressing — clears check-marks, logged sets, and weights; keeps the plan.
+        function clearThisWeek() {
+            const cur = appData.currentWeek;
+            if (!confirm(`Blank Week ${cur.weekNum}?\n\nThis clears your check-marks, logged sets, and weights so you start the week fresh. Your exercises (and any leveled-up variations) stay — nothing is archived or progressed.`)) return;
+            ['day1', 'day2', 'day3', 'day4'].forEach(dk => {
+                const day = cur.days[dk];
+                const wipe = ex => { ex.completed = false; ex.actualRpe = null; ex.weight = 0; ex.setLogs = []; };
+                (day.exercises || []).forEach(wipe);
+                (day.gymExercises || []).forEach(wipe);   // also the stashed gym list if in hotel/bodyweight mode
+                day.completed = false; day.completedDate = null;
+            });
+            saveData(appData);
+            selectDay(1);
+            showMessage('workout-display', 'success', `✓ Week ${cur.weekNum} blanked — same plan, fresh slate.`);
+        }
 
         function renderStrengthHistory() {
             // This function kept for compatibility but not used in new system
