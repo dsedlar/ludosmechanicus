@@ -2380,6 +2380,7 @@
         }
         function reconcileWeek(week) {
             if (!week || !week.days) return;
+            if (week.progressed) return;   // progression has taken over this week — leave its variations/loads alone
             ['day1', 'day2', 'day3', 'day4'].forEach(dk => {
                 const day = week.days[dk];
                 const tmpl = WORKOUT_TEMPLATE[dk];
@@ -2597,9 +2598,17 @@
             if (completed === total) {
                 html += `
                     <button class="btn-primary" style="width: 100%; background: var(--success); font-size: 14px; padding: 16px;"
-                        onclick="completeWeekAndProgress()">
-                        ✓ Week Complete! Generate Next Week (with Progression)
+                        onclick="startNextWeek()">
+                        ✓ Week Complete! Start Next Week (with Progression)
                     </button>
+                `;
+            } else {
+                html += `
+                    <button class="btn-secondary" style="width: 100%; font-size: 13px; padding: 13px;"
+                        onclick="startNextWeek()">
+                        <i class="ti ti-arrow-right" style="margin-right:6px;"></i>Start next week &amp; progress
+                    </button>
+                    <div style="font-size:11px; color:var(--text-secondary); text-align:center; margin-top:6px;">Reset anytime (e.g. Sunday) — completed lifts progress, skipped ones hold.</div>
                 `;
             }
 
@@ -2611,36 +2620,90 @@
             updateStats();
         }
 
-        function completeWeekAndProgress() {
-            // Save current week to history
+        // ---- Progressive overload: after ADVANCE_THRESHOLD completed weeks on a movement, level it up a variation ----
+        const ADVANCE_THRESHOLD = 3;   // solid weeks on an exercise before it advances to a harder variation
+        // Coach-designed difficulty ladders (step 0 = base template movement; each next step is harder).
+        const LADDERS = {
+            'Hex Bar Jump': [{ name: 'Hex Bar Jump' }, { name: 'Loaded Hex Bar Jump', note: 'Add ~10-15% — keep the bar moving fast' }, { name: 'Trap Bar Jump — Cluster', reps: '3×1-2', note: 'Max-intent singles, full reset each rep' }],
+            'Landmine Single-Leg Squat': [{ name: 'Landmine Single-Leg Squat' }, { name: 'Rear-Foot-Elevated Split Squat (DB)', reps: '4×6 ea' }, { name: 'Bulgarian Split Squat — Tempo', reps: '3×6 ea', note: '3s down, controlled' }],
+            'Back Squat Modified / Goblet Squat': [{ name: 'Back Squat Modified / Goblet Squat' }, { name: 'DB/KB Front Squat', reps: '3×6' }, { name: 'Back Squat', reps: '3×5' }, { name: 'Back Squat — Tempo', reps: '3×5', note: '3s eccentric' }],
+            'Landmine Chop 90/90': [{ name: 'Landmine Chop 90/90' }, { name: 'Half-Kneeling Landmine Chop', reps: '3×8-10 ea' }, { name: 'Standing Cable/Band Chop — explosive', reps: '3×10 ea' }],
+            'Single-Arm Hex Bar Deadlift': [{ name: 'Single-Arm Hex Bar Deadlift' }, { name: 'Trap Bar Deadlift', reps: '3×5' }, { name: 'Trap Bar Deadlift — Tempo', reps: '3×5', note: 'Control the lower' }],
+            'Landmine Scoop Toss': [{ name: 'Landmine Scoop Toss' }, { name: 'Rotational Scoop Toss (heavier)', reps: '4×5 ea' }, { name: 'Standing Med Ball Chest Pass — max intent', reps: '4×5' }],
+            'Medicine Ball Slam (overhead)': [{ name: 'Medicine Ball Slam (overhead)' }, { name: 'Heavier Overhead Slam', reps: '3×6' }, { name: 'Slam + Broad Jump (contrast)', reps: '3×5' }],
+            'DB Bench or Floor Press': [{ name: 'DB Bench or Floor Press' }, { name: 'Single-Arm DB Bench (anti-rotation)', reps: '3×8-10 ea' }, { name: 'DB Incline Press', reps: '3×8-10' }, { name: 'Barbell Bench Press', reps: '4×5' }],
+            'DB Row (single-arm)': [{ name: 'DB Row (single-arm)' }, { name: 'Chest-Supported DB Row', reps: '3×10-12' }, { name: '3-Point DB Row — heavy', reps: '3×8 ea' }, { name: 'Weighted Inverted Row / Pull-Up', reps: '3×6-8' }],
+            'Landmine High-to-Low Chop': [{ name: 'Landmine High-to-Low Chop' }, { name: 'Half-Kneeling High-to-Low Chop', reps: '3×8-10 ea' }, { name: 'Cable/Band High-to-Low — explosive', reps: '3×10 ea' }],
+            'Pallof Press': [{ name: 'Pallof Press' }, { name: 'Half-Kneeling Pallof (longer lever)', reps: '3×10 ea' }, { name: 'Standing Pallof + Reach', reps: '3×10 ea' }, { name: 'Pallof Iso Walkout', reps: '3×6 ea' }],
+            'Landmine 90/90 Rotation (explosive)': [{ name: 'Landmine 90/90 Rotation (explosive)' }, { name: 'Heavier / Faster 90/90 Rotation', reps: '4×6 ea' }, { name: 'Med Ball Rotational Throw — max velocity', reps: '4×5 ea' }],
+            'Med Ball Rotational Slam (diagonal)': [{ name: 'Med Ball Rotational Slam (diagonal)' }, { name: 'Heavier Rotational Slam', reps: '3×8 ea' }, { name: 'Rotational Slam + Step (transfer)', reps: '3×6 ea' }],
+            'Pallof Press (kneeling)': [{ name: 'Pallof Press (kneeling)' }, { name: 'Standing Pallof + Reach', reps: '3×12 ea' }, { name: 'Pallof Iso Walkout', reps: '3×6 ea' }],
+            'Single-Arm Farmer Carry': [{ name: 'Single-Arm Farmer Carry' }, { name: 'Heavier / Longer Suitcase Carry', reps: '3×50m ea' }, { name: 'Bottoms-Up KB Carry', reps: '3×30m ea', note: 'Grip + shoulder stability' }],
+            'Dead Bug Hold': [{ name: 'Dead Bug Hold' }, { name: 'Weighted Dead Bug', reps: '3×30-45 sec' }, { name: 'Hollow Body Hold', reps: '3×20-30 sec' }, { name: 'Hollow Rock', reps: '3×10-12' }],
+            'Med Ball Slam': [{ name: 'Med Ball Slam' }, { name: 'Heavier Med Ball Slam', reps: '3×5' }, { name: 'Slam + Broad Jump (contrast)', reps: '3×4' }],
+            'Landmine Chop (both directions)': [{ name: 'Landmine Chop (both directions)' }, { name: 'Half-Kneeling Chop (both directions)', reps: '3×10 ea' }, { name: 'Cable/Band Chop — explosive', reps: '3×10 ea' }],
+            'Overhead Dumbbell Carry': [{ name: 'Overhead Dumbbell Carry' }, { name: 'Single-Arm Overhead Carry', reps: '3×40m ea' }, { name: 'Bottoms-Up Overhead Carry', reps: '3×30m ea' }],
+            'Landmine Single-Leg Deadlift': [{ name: 'Landmine Single-Leg Deadlift' }, { name: 'DB Single-Leg RDL', reps: '3×6-8 ea' }, { name: 'Single-Leg RDL — Deficit / Tempo', reps: '3×6 ea' }]
+        };
+
+        // Start the next training week, progressing each lift from what was logged (weights up, movements level up).
+        function startNextWeek() {
+            const cur = appData.currentWeek;
+            const done = Object.values(cur.days).filter(d => d.completed).length;
+            if (!confirm(`Start Week ${cur.weekNum + 1}?\n\nThis week is saved to your history. Every exercise you completed progresses (more weight, and harder variations as you master them); anything you skipped holds for another try.\n\n(${done}/4 workouts logged this week.)`)) return;
+
             appData.weekHistory = appData.weekHistory || [];
-            appData.weekHistory.push(appData.currentWeek);
+            appData.weekHistory.push(cur);
+            appData.progression = appData.progression || {};
 
-            // Generate next week with progression
-            const nextWeek = generateWeek(appData.currentWeek.weekNum + 1);
-            const currentWeek = appData.currentWeek;
-
-            // Apply progression: 5-7% increase based on RPE or consistency
-            ['day1', 'day2', 'day3', 'day4'].forEach(dayKey => {
-                const srcDay = currentWeek.days[dayKey];
-                const srcExercises = srcDay.gymExercises ? srcDay.gymExercises : srcDay.exercises;  // use stashed gym weights if on an alt (bodyweight/hotel) mode
-                nextWeek.days[dayKey].exercises.forEach((nextEx, idx) => {
-                    const currentEx = srcExercises[idx];
-                    if (currentEx && currentEx.weight > 0) {
-                        // Increase by 5% default, 7% if RPE was high
-                        const increase = currentEx.weight * (currentEx.actualRpe >= 8 ? 0.07 : 0.05);
-                        nextEx.weight = Math.round((currentEx.weight + increase) * 2) / 2; // Round to nearest 2.5
+            const next = generateWeek(cur.weekNum + 1);
+            const levelUps = [];
+            ['day1', 'day2', 'day3', 'day4'].forEach(dk => {
+                const srcDay = cur.days[dk];
+                const srcList = srcDay.gymExercises ? srcDay.gymExercises : srcDay.exercises;   // logged gym data (even if on hotel/bodyweight)
+                next.days[dk].exercises.forEach((nx, idx) => {
+                    const tmplName = nx.name;                 // base template name at this slot
+                    const slotKey = dk + ':' + idx;
+                    const st = appData.progression[slotKey] || { step: 0, streak: 0 };
+                    const src = srcList[idx];
+                    const completed = !!(src && src.completed);
+                    const ladder = LADDERS[tmplName];
+                    let step = st.step, streak = completed ? st.streak + 1 : 0, leveledUp = false;
+                    if (completed && ladder && streak >= ADVANCE_THRESHOLD && step + 1 < ladder.length) {
+                        step += 1; streak = 0; leveledUp = true;
                     }
+                    // apply the current variation
+                    if (ladder && step > 0) {
+                        const v = ladder[step];
+                        nx.name = v.name;
+                        if (v.reps) nx.reps = v.reps;
+                        nx.note = v.note || '';
+                    }
+                    // set the working weight
+                    if (leveledUp) {
+                        nx.weight = 0;
+                        nx.note = (nx.note ? nx.note + ' · ' : '') + '↑ Leveled up — dial in a new working weight';
+                        levelUps.push(`${tmplName} → ${nx.name}`);
+                    } else if (completed && src.weight > 0) {
+                        nx.weight = Math.round((src.weight * 1.05) * 2) / 2;   // +5%, nearest 2.5
+                    } else if (src) {
+                        nx.weight = src.weight || 0;   // hold
+                    }
+                    appData.progression[slotKey] = { step, streak };
                 });
             });
 
-            appData.currentWeek = nextWeek;
-            document.getElementById('current-week-num').textContent = nextWeek.weekNum;
+            next.progressed = true;   // user-owned from here — reconcileWeek won't revert variations
+            appData.currentWeek = next;
+            const el = document.getElementById('current-week-num'); if (el) el.textContent = next.weekNum;
             saveData(appData);
-
             selectDay(1);
-            showMessage('workout-display', 'success', '✓ Week ' + nextWeek.weekNum + ' generated with progression!');
+            const msg = levelUps.length
+                ? `✓ Week ${next.weekNum} ready · leveled up: ${levelUps.slice(0, 3).join(', ')}${levelUps.length > 3 ? ` +${levelUps.length - 3} more` : ''}`
+                : `✓ Week ${next.weekNum} ready — loads progressed on everything you completed.`;
+            showMessage('workout-display', 'success', msg);
         }
+        function completeWeekAndProgress() { startNextWeek(); }   // back-compat alias
 
         function renderStrengthHistory() {
             // This function kept for compatibility but not used in new system
@@ -4941,6 +5004,7 @@
             d.perfectWeeks = d.perfectWeeks || [];
             d.supersets   = d.supersets   || {};
             d.mealPlan    = d.mealPlan    || null;
+            d.progression = d.progression || {};
             if (d.currentWeek) reconcileWeek(d.currentWeek);   // bring saved week up to current template
         }
 
