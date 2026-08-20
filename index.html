@@ -811,15 +811,20 @@
                     <div class="form-group"><label>Course</label><input type="text" id="qg-course" placeholder="Course name"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Score</label><input type="number" id="qg-score" placeholder="78"></div>
-                    <div class="form-group"><label>Par</label><input type="number" id="qg-par" placeholder="72"></div>
-                    <div class="form-group"><label>Putts (opt.)</label><input type="number" id="qg-putts" placeholder="32"></div>
+                    <div class="form-group"><label>Score</label><input type="number" id="qg-score" placeholder="78" oninput="qgVsPar()"></div>
+                    <div class="form-group"><label>Par</label><input type="number" id="qg-par" placeholder="72" oninput="qgVsPar()"></div>
+                    <div class="form-group"><label>To Par</label><input type="text" id="qg-vspar" readonly placeholder="—" style="text-align:center; color:var(--primary); font-weight:700;"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>GIR % (opt.)</label><input type="number" id="qg-gir" min="0" max="100" placeholder="56"></div>
-                    <div class="form-group"><label>Fairways % (opt.)</label><input type="number" id="qg-accuracy" min="0" max="100" placeholder="64"></div>
+                    <div class="form-group"><label>Fairways Hit</label>
+                        <div style="display:flex; align-items:center; gap:8px;"><input type="number" id="qg-fw-hit" min="0" placeholder="8" style="flex:1; min-width:0;"><span style="color:var(--text-secondary); font-size:13px;">of</span><input type="number" id="qg-fw-tot" min="1" value="14" style="width:64px; flex:0 0 auto;"></div>
+                    </div>
+                    <div class="form-group"><label>Greens (GIR)</label>
+                        <div style="display:flex; align-items:center; gap:8px;"><input type="number" id="qg-gir-hit" min="0" placeholder="11" style="flex:1; min-width:0;"><span style="color:var(--text-secondary); font-size:13px;">of</span><input type="number" id="qg-gir-tot" min="1" value="18" style="width:64px; flex:0 0 auto;"></div>
+                    </div>
+                    <div class="form-group"><label>Putts</label><input type="number" id="qg-putts" placeholder="30"></div>
                 </div>
-                <div style="font-size:11px; color:var(--text-secondary); margin-top:10px;">Need course rating/slope, weather, or swing notes? Use the full form on the Golf tab.</div>
+                <div style="font-size:11px; color:var(--text-secondary); margin-top:10px;">Read these straight off your Arccos round summary — fairways &amp; greens as the fractions it shows. Need rating/slope, weather, or swing notes? Use the full form on the Golf tab.</div>
                 <button class="btn-primary" onclick="logGolfFromModal()" style="margin-top:14px; width:100%;">Save</button>
                 <div id="qg-message" style="margin-top:12px;"></div>
             </div>
@@ -1531,9 +1536,17 @@
 
         <!-- MEALS -->
         <div id="meals" class="tab-content">
-            <div class="section" style="padding:12px;">
-                <div class="section-title"><div class="section-icon"><i class="ti ti-salad"></i></div>Family Meal Plan</div>
-                <iframe id="meal-frame" src="./meal-plan.html" title="Family Meal Plan" onload="resizeMealFrame()" scrolling="no" style="width:100%; border:0; border-radius:12px; background:#fff; display:block; min-height:640px;"></iframe>
+            <div class="section" style="padding:16px;">
+                <div class="section-title" style="justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                    <span style="display:inline-flex; align-items:center; gap:8px;"><span class="section-icon"><i class="ti ti-salad"></i></span>Family Meal Plan</span>
+                    <span style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="btn-primary" onclick="generateMealPlan()"><i class="ti ti-wand" style="margin-right:6px;"></i>Generate This Week's Plan</button>
+                        <button class="btn-secondary" onclick="printMealPlan()"><i class="ti ti-printer" style="margin-right:6px;"></i>Print / PDF</button>
+                    </span>
+                </div>
+                <div class="info-box" style="margin-bottom:12px;">Tap <strong>Generate</strong> (e.g. every Sunday) to build next week's plan — same family rhythm (fish Tue/Thu/Sun, taco Wed, pizza Sat, tenders Fri), fresh dishes, with the shopping list &amp; budget auto-built.</div>
+                <div id="meal-message" style="margin-bottom:12px;"></div>
+                <iframe id="meal-frame" title="Family Meal Plan" onload="if(window.resizeMealFrame)resizeMealFrame()" scrolling="no" style="width:100%; border:0; border-radius:12px; background:#fff; display:block; min-height:640px;"></iframe>
             </div>
         </div>
 
@@ -1733,7 +1746,7 @@
                 if (tabName === 'reading') renderReading();
                 if (tabName === 'fasting') renderFasting();
                 if (tabName === 'dashboard') renderDashboard();
-                if (tabName === 'meals') resizeMealFrame();
+                if (tabName === 'meals') { if (typeof renderMeals === 'function') renderMeals(); resizeMealFrame(); }
             }, 100);
         }
 
@@ -2660,16 +2673,34 @@
             return round;
         }
 
-        // Dashboard quick-entry: golf round (core fields; full detail + course search on the Golf tab)
+        // Dashboard quick-entry: golf round — mirrors the Arccos round summary (fairways/greens as fractions)
         function openGolfModal() {
             document.getElementById('qg-date').value = todayStr();
-            ['qg-course', 'qg-score', 'qg-par', 'qg-putts', 'qg-gir', 'qg-accuracy'].forEach(id => document.getElementById(id).value = '');
+            ['qg-course', 'qg-score', 'qg-putts', 'qg-fw-hit', 'qg-gir-hit'].forEach(id => document.getElementById(id).value = '');
             document.getElementById('qg-par').value = '72';
+            document.getElementById('qg-fw-tot').value = '14';
+            document.getElementById('qg-gir-tot').value = '18';
+            qgVsPar();
             document.getElementById('qg-message').innerHTML = '';
             document.getElementById('golf-modal').style.display = 'flex';
             setTimeout(() => document.getElementById('qg-course').focus(), 60);
         }
         function closeGolfModal() { document.getElementById('golf-modal').style.display = 'none'; }
+        // Live "to par" readout as you type score/par (matches how Arccos shows +6 / E / -2)
+        function qgVsPar() {
+            const s = parseFloat(document.getElementById('qg-score').value);
+            const p = parseFloat(document.getElementById('qg-par').value);
+            const el = document.getElementById('qg-vspar');
+            if (!isNaN(s) && !isNaN(p)) { const d = s - p; el.value = d === 0 ? 'E' : (d > 0 ? '+' + d : '' + d); }
+            else el.value = '';
+        }
+        // hit / total → percentage (blank if not entered), matching the app's stored girPct / accuracy
+        function fracPct(hitId, totId) {
+            const hit = parseFloat(document.getElementById(hitId).value);
+            const tot = parseFloat(document.getElementById(totId).value);
+            if (isNaN(hit) || !tot) return 0;
+            return Math.round(Math.max(0, Math.min(1, hit / tot)) * 100);
+        }
         function logGolfFromModal() {
             const date = document.getElementById('qg-date').value;
             const course = document.getElementById('qg-course').value.trim();
@@ -2679,8 +2710,8 @@
                 date, course, score,
                 par: parseFloat(document.getElementById('qg-par').value) || 72,
                 putts: parseFloat(document.getElementById('qg-putts').value) || 0,
-                girPct: parseFloat(document.getElementById('qg-gir').value) || 0,
-                accuracy: parseFloat(document.getElementById('qg-accuracy').value) || 0
+                girPct: fracPct('qg-gir-hit', 'qg-gir-tot'),
+                accuracy: fracPct('qg-fw-hit', 'qg-fw-tot')
             });
             showMessage('qg-message', 'success', `✓ Logged: ${score} at ${course}`);
             setTimeout(closeGolfModal, 850);
@@ -4909,6 +4940,7 @@
             d.journal     = d.journal     || [];
             d.perfectWeeks = d.perfectWeeks || [];
             d.supersets   = d.supersets   || {};
+            d.mealPlan    = d.mealPlan    || null;
             if (d.currentWeek) reconcileWeek(d.currentWeek);   // bring saved week up to current template
         }
 
@@ -5154,5 +5186,6 @@
             });
         })();
     </script>
+    <script src="./meals-engine.js"></script>
 </body>
 </html>
