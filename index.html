@@ -2440,6 +2440,9 @@
                             <button class="btn-secondary" style="font-size: 13px; padding: 8px 14px;${day.hotel ? ' border-color:var(--accent); color:var(--accent);' : ''}" onclick="setWorkoutMode('${dayKey}', 'hotel')">
                                 <i class="ti ${day.hotel ? 'ti-barbell' : 'ti-building'}" style="margin-right: 6px;"></i>${day.hotel ? 'Back to gym' : 'Hotel gym'}
                             </button>
+                            <button class="btn-secondary" style="font-size: 13px; padding: 8px 14px;" onclick="printWorkout(${dayNum})" title="Print a gym sheet for this day">
+                                <i class="ti ti-printer" style="margin-right: 6px;"></i>Print
+                            </button>
                         </div>
                     </div>
                     <div style="display:flex; flex-wrap:wrap; gap:6px 14px; margin-bottom:14px; font-size:11px; color:var(--text-secondary);">
@@ -2721,6 +2724,60 @@
             saveData(appData);
             selectDay(1);
             showMessage('workout-display', 'success', `✓ Week ${cur.weekNum} blanked — same plan, fresh slate.`);
+        }
+
+        // Print a clean, gym-ready sheet for one day (write-in lines for the weight you use each set).
+        function printWorkout(dayNum) {
+            const dayKey = 'day' + dayNum;
+            const day = appData.currentWeek && appData.currentWeek.days[dayKey];
+            if (!day) return;
+            const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+            const modeLabel = day.bodyweight ? ' · Bodyweight' : (day.hotel ? ' · Hotel gym' : '');
+            const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+
+            const rows = day.exercises.map(ex => {
+                const group = supersetFor(dayKey, ex.name);
+                const cat = CATEGORY_COLORS[ex.cat] || '#64748b';
+                const reps = ex.reps || '';
+                const isWeight = !ex.bodyweight && !reps.includes('sec') && !reps.includes('stretch') && !reps.includes('circuit') && !reps.includes('AMRAP');
+                const nSets = Math.max(1, parseInt(ex.sets, 10) || 1);
+                const cells = isWeight
+                    ? Array.from({ length: nSets }, (_, i) => `<span class="cell"><b>${i + 1}</b><span class="ln"></span></span>`).join('')
+                    : `<span class="cell">Done <span class="box"></span></span>`;
+                return `<div class="ex" style="border-left:6px solid ${cat}">
+                    <div class="head"><span class="name">${esc(ex.name)}${group ? ` <span class="ss">SS ${esc(group)}</span>` : ''}</span><span class="box"></span></div>
+                    <div class="rx">${esc(ex.sets)}×${esc(ex.reps)} · RPE ${esc(ex.rpe)}${ex.note ? ` — <i>${esc(ex.note)}</i>` : ''}</div>
+                    <div class="cells">${cells}</div>
+                </div>`;
+            }).join('');
+
+            const css = `*{box-sizing:border-box;margin:0;padding:0;}
+                body{font-family:-apple-system,'Segoe UI',system-ui,sans-serif;color:#111;padding:22px;max-width:760px;margin:0 auto;}
+                h1{font-size:22px;margin-bottom:2px;}
+                .date{color:#666;font-size:13px;margin-bottom:16px;}
+                .ex{border:1px solid #ddd;border-radius:8px;padding:10px 12px;margin-bottom:10px;page-break-inside:avoid;}
+                .head{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+                .name{font-weight:700;font-size:15px;}
+                .ss{font-size:10px;font-weight:700;border:1px solid #999;border-radius:4px;padding:1px 5px;margin-left:6px;color:#444;white-space:nowrap;}
+                .rx{font-size:12.5px;color:#444;margin:3px 0 9px;}
+                .cells{display:flex;flex-wrap:wrap;gap:16px;}
+                .cell{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#333;}
+                .cell b{font-size:11px;color:#888;font-weight:700;}
+                .ln{display:inline-block;width:54px;border-bottom:1.5px solid #333;height:15px;}
+                .box{display:inline-block;width:16px;height:16px;border:1.5px solid #333;border-radius:3px;flex-shrink:0;}
+                .foot{margin-top:14px;font-size:11px;color:#999;text-align:center;}
+                @media print{body{padding:8px;} .ex{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}`;
+            const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(day.name)}</title><style>${css}</style></head><body>
+                <h1>${esc(day.name)}${modeLabel}</h1>
+                <div class="date">${dateStr} · Week ${appData.currentWeek.weekNum} · write your weight on each set line</div>
+                ${rows}
+                <div class="foot">Ludos Mechanicus</div>
+            </body></html>`;
+
+            const w = window.open('', '_blank');
+            if (!w) { showMessage('workout-display', 'error', 'Allow pop-ups to print this sheet.'); return; }
+            w.document.open(); w.document.write(html); w.document.close(); w.focus();
+            setTimeout(() => { try { w.print(); } catch (e) {} }, 400);
         }
 
         function renderStrengthHistory() {
