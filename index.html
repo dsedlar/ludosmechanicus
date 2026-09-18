@@ -711,6 +711,13 @@
                     <input type="file" id="import-file" accept=".json,application/json" style="display:none" onchange="importBackup(this)">
                 </div>
                 <div id="backup-message" style="margin-top:12px;"></div>
+
+                <div style="font-family:'Space Grotesk', sans-serif; font-weight:600; color:var(--text-primary); margin:22px 0 8px; font-size:16px; border-top:1px solid var(--border); padding-top:18px;">Reset Strength</div>
+                <div class="info-box" style="margin-bottom:16px;">
+                    Start the 4-day strength program over from a fresh <strong>Week 1</strong>. Clears your current week, all week history, progression (level-ups) and strength PRs. Your superset tweaks stay, and golf / sleep / cardio / reading / fasting / body data are <strong>not</strong> touched. A local backup is saved first.
+                </div>
+                <button class="btn-secondary" onclick="resetStrengthToWeek1()" style="border-color:var(--accent-power); color:var(--accent-power);"><i class="ti ti-refresh-alert" style="margin-right:6px;"></i>Reset strength to Week 1</button>
+                <div id="reset-message" style="margin-top:12px;"></div>
             </div>
         </div>
 
@@ -2724,6 +2731,25 @@
             saveData(appData);
             selectDay(1);
             showMessage('workout-display', 'success', `✓ Week ${cur.weekNum} blanked — same plan, fresh slate.`);
+        }
+
+        // Wipe the strength program back to a fresh Week 1 (strength only; other tracking untouched).
+        function resetStrengthToWeek1() {
+            if (!confirm('Reset strength training to Week 1?\n\nThis permanently clears your current week, ALL week history, progression (level-ups), and strength PRs, and starts a fresh Week 1.\n\nYour superset tweaks stay, and golf / sleep / cardio / reading / fasting / body data are NOT affected.\n\nA local backup is saved first, but this can\'t be undone in-app.')) return;
+            try { stashLocalBackup(); } catch (e) {}
+            appData.currentWeek = generateWeek(1);
+            appData.weekHistory = [];
+            appData.progression = {};
+            appData.strength = {};                                   // legacy strength store
+            if (appData.prBests) appData.prBests.strength = {};      // clear strength PRs, keep body/health PRs
+            // supersets kept (user chose to keep their tweaks)
+            saveData(appData);
+            const el = document.getElementById('current-week-num'); if (el) el.textContent = '1';
+            selectDay(1);
+            updateStats();
+            if (typeof renderDashboard === 'function') renderDashboard();
+            showMessage('reset-message', 'success', '✓ Strength reset — fresh Week 1. Everything else is untouched.');
+            setTimeout(() => { if (typeof closeSettings === 'function') closeSettings(); }, 1200);
         }
 
         // Print a clean, gym-ready sheet for one day (write-in lines for the weight you use each set).
