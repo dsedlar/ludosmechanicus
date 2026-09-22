@@ -5033,6 +5033,7 @@
         // ============ INITIALIZATION ============
         function init() {
             // Initialize current week if needed
+            migrateExerciseNames(appData);            // rename retired exercises (offline/local path)
             if (!appData.currentWeek) {
                 appData.currentWeek = generateWeek(1);
             } else {
@@ -5106,7 +5107,52 @@
             d.supersets   = d.supersets   || {};
             d.mealPlan    = d.mealPlan    || null;
             d.progression = d.progression || {};
+            migrateExerciseNames(d);                            // rename retired/fabricated exercises in place (keeps logged weights)
             if (d.currentWeek) reconcileWeek(d.currentWeek);   // bring saved week up to current template
+        }
+
+        // One-time: rename old/fabricated exercise names to the corrected real movements everywhere they're stored,
+        // preserving logged weights/sets. Idempotent — names not in the map are left alone.
+        const EXERCISE_RENAME = {
+            'Hex Bar Jump': 'Trap Bar Jump',
+            'Landmine Single-Leg Squat': 'Rear-Foot-Elevated Split Squat (DB)',
+            'Back Squat Modified / Goblet Squat': 'Goblet Squat',
+            'Landmine Chop 90/90': 'Half-Kneeling Landmine Rotation',
+            'Single-Arm Hex Bar Deadlift': 'Single-Arm Dumbbell Romanian Deadlift',
+            'Landmine Scoop Toss': 'Med Ball Rotational Scoop Toss',
+            'Medicine Ball Slam (overhead)': 'Medicine Ball Overhead Slam',
+            'DB Row (single-arm)': 'Single-Arm Dumbbell Row',
+            'Landmine High-to-Low Chop': 'Half-Kneeling Cable/Band Chop',
+            'Finisher: Med Ball Throws': 'Finisher: Med Ball Chest Pass',
+            'Landmine 90/90 Rotation (explosive)': 'Landmine Rotation (explosive)',
+            'Med Ball Rotational Slam (diagonal)': 'Med Ball Rotational Slam',
+            'Pallof Press (kneeling)': 'Half-Kneeling Pallof Press',
+            'Single-Arm Farmer Carry': 'Suitcase Carry (single-arm)',
+            'Dead Bug Hold': 'Dead Bug',
+            'Landmine Chop (both directions)': 'Standing Landmine Rotation',
+            'Landmine Single-Leg Deadlift': 'DB Single-Leg Romanian Deadlift'
+        };
+        function migrateExerciseNames(d) {
+            const ren = n => EXERCISE_RENAME[n] || n;
+            const fixWeek = wk => {
+                if (!wk || !wk.days) return;
+                Object.values(wk.days).forEach(day => {
+                    (day.exercises || []).forEach(ex => { ex.name = ren(ex.name); });
+                    (day.gymExercises || []).forEach(ex => { ex.name = ren(ex.name); });
+                });
+            };
+            fixWeek(d.currentWeek);
+            (d.weekHistory || []).forEach(fixWeek);
+            // supersets are keyed by exercise name — move any renamed keys
+            if (d.supersets) {
+                Object.keys(d.supersets).forEach(dk => {
+                    const day = d.supersets[dk]; if (!day) return;
+                    Object.keys(day).forEach(name => {
+                        const nn = ren(name);
+                        if (nn !== name) { day[nn] = day[name]; delete day[name]; }
+                    });
+                });
+            }
         }
 
         // ---- Non-destructive merge of two appData blobs (union of records; no silent data loss) ----
