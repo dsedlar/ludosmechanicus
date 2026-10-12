@@ -1276,170 +1276,46 @@
             <div class="section">
                 <div class="section-title">
                     <div class="section-icon"><i class="ti ti-flag"></i></div>
-                    Log Grint Round
+                    Log a Round
                 </div>
                 <div class="info-box">
-                    After playing a round, log your Grint data here. Pick a course to auto-load tees, ratings &amp; weather; your handicap is calculated from your scores.
+                    Read these straight off your <strong>Arccos round summary</strong> — fairways &amp; greens as the fractions Arccos shows. No sign-in needed.
                 </div>
                 <div id="grint-hcp-box" style="background:var(--bg-hover); border-left:3px solid var(--accent); border-radius:0 10px 10px 0; padding:12px 16px; margin-bottom:16px;">
-                    <span style="color:var(--text-secondary); font-size:12px;">Calculated Handicap Index (World Handicap System)</span>
+                    <span style="color:var(--text-secondary); font-size:12px;">Handicap Index</span>
                     <div style="font-family:'Space Grotesk', sans-serif; font-size:26px; font-weight:700; color:var(--primary);" id="grint-calc-index">—</div>
-                    <span id="grint-calc-note" style="color:var(--text-secondary); font-size:12px;">Log 3+ rounds with course rating &amp; slope to calculate.</span>
+                    <span id="grint-calc-note" style="color:var(--text-secondary); font-size:12px;">Enter your Handicap Index from Arccos on a round (optional) to show it here.</span>
                 </div>
                 <div style="background: var(--bg-hover); padding: 20px; border-radius: var(--radius); margin-bottom: 20px;">
                     <div class="form-row">
-                        <div class="form-group">
-                            <label>Date Played</label>
-                            <input type="date" id="grint-date" onchange="onRoundDateChange()">
-                        </div>
-                        <div class="form-group">
-                            <label>Course Name</label>
-                            <div style="position:relative;">
-                                <input type="text" id="grint-course" autocomplete="off" placeholder="Type 3+ letters to search courses" oninput="onCourseInput()" onfocus="onCourseInput()" onblur="setTimeout(function(){ hideCourseDropdown(); maybeLoadTees(); }, 150)">
-                                <div id="course-results" class="course-dd" style="display:none;" onmousedown="event.preventDefault()"></div>
-                            </div>
-                            <div id="course-search-status" style="font-size:11px; color:var(--text-secondary); margin-top:4px; min-height:14px;"></div>
-                            <style>
-                                .course-dd { position:absolute; left:0; right:0; top:100%; z-index:50; background:var(--bg-card); border:1px solid var(--border); border-radius:0 0 10px 10px; max-height:240px; overflow-y:auto; box-shadow:0 10px 24px rgba(0,0,0,.45); }
-                                .course-dd-item { padding:10px 12px; cursor:pointer; border-bottom:1px solid var(--border); }
-                                .course-dd-item:last-child { border-bottom:none; }
-                                .course-dd-item:hover { background:var(--bg-hover); }
-                                .course-dd-name { color:var(--text-primary); font-weight:500; }
-                                .course-dd-loc { color:var(--text-secondary); font-size:12px; margin-top:2px; }
-                            </style>
-                        </div>
-                        <div class="form-group">
-                            <label>Course Location</label>
-                            <input type="text" id="grint-location" placeholder="City, State">
-                        </div>
-                        <div class="form-group">
-                            <label>Course Rating</label>
-                            <input type="number" id="grint-rating" step="0.1" placeholder="71.2">
-                        </div>
+                        <div class="form-group"><label>Date Played</label><input type="date" id="ar-date"></div>
+                        <div class="form-group"><label>Course</label><input type="text" id="ar-course" placeholder="Course name"></div>
                     </div>
-
                     <div class="form-row">
-                        <div class="form-group">
-                            <label>Score</label>
-                            <input type="number" id="grint-score" placeholder="78">
-                        </div>
-                        <div class="form-group">
-                            <label>Course Par</label>
-                            <input type="number" id="grint-par" placeholder="72">
-                        </div>
-                        <div class="form-group">
-                            <label>Tees</label>
-                            <select id="grint-tee" onchange="onTeeSelected()"><option value="">Pick a course first</option></select>
-                            <div id="grint-tee-status" style="font-size:11px; color:var(--text-secondary); margin-top:4px;"></div>
-                        </div>
-                        <div class="form-group">
-                            <label>Slope</label>
-                            <input type="number" id="grint-slope" placeholder="125">
-                        </div>
+                        <div class="form-group"><label>Score</label><input type="number" id="ar-score" placeholder="78" oninput="arVsPar()"></div>
+                        <div class="form-group"><label>Par</label><input type="number" id="ar-par" placeholder="72" oninput="arVsPar()"></div>
+                        <div class="form-group"><label>To Par</label><input type="text" id="ar-vspar" readonly placeholder="—" style="text-align:center; color:var(--primary); font-weight:700;"></div>
                     </div>
-
                     <div class="form-row">
-                        <div class="form-group">
-                            <label>Putts</label>
-                            <input type="number" id="grint-putts" placeholder="32">
+                        <div class="form-group"><label>Fairways Hit</label>
+                            <div style="display:flex; align-items:center; gap:8px;"><input type="number" id="ar-fw-hit" min="0" placeholder="8" style="flex:1; min-width:0;"><span style="color:var(--text-secondary); font-size:13px;">of</span><input type="number" id="ar-fw-tot" min="1" value="14" style="width:64px; flex:0 0 auto;"></div>
                         </div>
-                        <div class="form-group">
-                            <label>GIR % (Greens in Reg.)</label>
-                            <input type="number" id="grint-gir-pct" min="0" max="100" placeholder="56">
+                        <div class="form-group"><label>Greens (GIR)</label>
+                            <div style="display:flex; align-items:center; gap:8px;"><input type="number" id="ar-gir-hit" min="0" placeholder="11" style="flex:1; min-width:0;"><span style="color:var(--text-secondary); font-size:13px;">of</span><input type="number" id="ar-gir-tot" min="1" value="18" style="width:64px; flex:0 0 auto;"></div>
                         </div>
-                        <div class="form-group">
-                            <label>FIR % (Fairways in Reg.)</label>
-                            <input type="number" id="grint-accuracy" min="0" max="100" placeholder="64">
-                        </div>
+                        <div class="form-group"><label>Putts</label><input type="number" id="ar-putts" placeholder="30"></div>
                     </div>
-
                     <div class="form-row">
-                        <div class="form-group">
-                            <label>Weather</label>
-                            <select id="grint-weather">
-                                <option value="">Select weather</option>
-                                <option value="sunny">Sunny</option>
-                                <option value="cloudy">Cloudy</option>
-                                <option value="rainy">Rainy</option>
-                                <option value="windy">Windy</option>
-                                <option value="mixed">Mixed</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Temp (°F)</label>
-                            <input type="number" id="grint-temp" placeholder="72">
-                        </div>
-                        <div class="form-group">
-                            <label>Course Condition</label>
-                            <select id="grint-condition">
-                                <option value="">Select condition</option>
-                                <option value="excellent">Excellent</option>
-                                <option value="good">Good</option>
-                                <option value="fair">Fair</option>
-                                <option value="poor">Poor</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Energy Level (1-10)</label>
-                            <input type="number" id="grint-energy" min="1" max="10" placeholder="8">
-                        </div>
-                        <div class="form-group">
-                            <label>Round Type</label>
-                            <select id="grint-type">
-                                <option value="tournament">Tournament</option>
-                                <option value="casual">Casual</option>
-                                <option value="practice">Practice</option>
-                                <option value="best-ball">Best Ball</option>
-                            </select>
-                        </div>
+                        <div class="form-group"><label>Avg Drive (yds)</label><input type="number" id="ar-avgdrive" placeholder="245"></div>
+                        <div class="form-group"><label>Longest Drive (yds)</label><input type="number" id="ar-longdrive" placeholder="275"></div>
+                        <div class="form-group"><label>Handicap Index (opt.)</label><input type="number" id="ar-hcp" step="0.1" placeholder="14.2"></div>
                     </div>
-
                     <div class="form-row">
-                        <div style="grid-column:1 / -1; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                            <button type="button" class="btn-secondary" style="font-size:13px; padding:8px 14px;" onclick="fetchWeatherForRound(true)"><i class="ti ti-cloud" style="margin-right:6px;"></i>Auto-fill weather from date + course</button>
-                            <span id="grint-weather-status" style="font-size:12px; color:var(--text-secondary);"></span>
-                        </div>
+                        <div class="form-group" style="grid-column:1 / -1;"><label>Notes (opt.)</label><textarea id="ar-notes" placeholder="Standout shots, conditions, takeaways…"></textarea></div>
                     </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>How did you play?</label>
-                            <select id="grint-play">
-                                <option value="">Select…</option>
-                                <option>Career round</option>
-                                <option>Great</option>
-                                <option>Good</option>
-                                <option>Average</option>
-                                <option>Below average</option>
-                                <option>Rough day</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Swing Improvements</label>
-                            <select id="grint-swing-select" onchange="addChip('swing', this)"></select>
-                            <div id="grint-swing-chips" class="chip-wrap"></div>
-                        </div>
-                        <div class="form-group">
-                            <label>Struggles</label>
-                            <select id="grint-struggles-select" onchange="addChip('struggles', this)"></select>
-                            <div id="grint-struggles-chips" class="chip-wrap"></div>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div style="grid-column: 1 / -1;">
-                            <label>Additional Notes</label>
-                            <textarea id="grint-notes" placeholder="Anything else — standout shots, conditions, takeaways…"></textarea>
-                        </div>
-                    </div>
-                    <style>
-                        .chip-wrap { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
-                        .chip { display:inline-flex; align-items:center; gap:6px; background:var(--bg-hover); border:1px solid var(--border); color:var(--text-primary); padding:4px 10px; border-radius:14px; font-size:12px; }
-                        .chip .chip-x { cursor:pointer; color:var(--text-secondary); font-weight:700; line-height:1; }
-                        .chip .chip-x:hover { color:var(--accent-power); }
-                    </style>
-
-                    <button class="btn-primary" onclick="addGrintRound()" style="margin-top: 12px;">Log Grint Round</button>
+                    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:10px;">Avg/Longest drive &amp; Handicap Index are optional — grab them from the Arccos round or your profile.</div>
+                    <button class="btn-primary" onclick="logArccosRound()" style="margin-top: 4px;">Log Round</button>
+                    <div id="ar-message" style="margin-top:12px;"></div>
                 </div>
             </div>
 
@@ -1469,7 +1345,7 @@
             <div class="section">
                 <div class="section-title">
                     <div class="section-icon"><i class="ti ti-list-details"></i></div>
-                    All Golf Rounds (Grint + Simulator)
+                    All Golf Rounds
                 </div>
                 <table class="data-table">
                     <thead>
@@ -2820,21 +2696,58 @@
                 accuracy: e.accuracy || 0, weather: e.weather || '', condition: e.condition || '',
                 energy: e.energy || 0, roundType: e.roundType || '', notes: e.notes || '',
                 play: e.play || '', temp: e.temp || 0,
+                avgDrive: e.avgDrive || 0, longestDrive: e.longestDrive || 0,
                 swingImprovements: e.swingImprovements || [], struggles: e.struggles || [],
                 lat: (e.lat != null ? e.lat : null), lon: (e.lon != null ? e.lon : null),
-                source: e.source || 'grint'
+                source: e.source || 'arccos'
             };
             round.differential = roundDifferential(round);
             appData.golf.push(round);
             appData.golf.sort((a, b) => new Date(b.date) - new Date(a.date));
-            const idx = computeHandicapIndex(appData.golf);   // WHS index incl. this round
-            round.handicap = idx;
-            round.hcpIndex = idx;
+            const idx = computeHandicapIndex(appData.golf);   // WHS index from rounds with rating+slope
+            // Prefer a directly-entered index (e.g. read off Arccos), else the computed WHS value
+            round.handicap = (e.handicapIndex != null ? e.handicapIndex : idx);
+            round.hcpIndex = round.handicap;
             flagNewPRs();
             saveData(appData);
             renderAllGolfTable();
             updateStats();
             return round;
+        }
+
+        // Golf-tab Arccos-native round entry (replaces the old Grint form)
+        function arVsPar() {
+            const s = parseFloat(document.getElementById('ar-score').value);
+            const p = parseFloat(document.getElementById('ar-par').value);
+            const el = document.getElementById('ar-vspar'); if (!el) return;
+            if (!isNaN(s) && !isNaN(p)) { const d = s - p; el.value = d === 0 ? 'E' : (d > 0 ? '+' + d : '' + d); }
+            else el.value = '';
+        }
+        function logArccosRound() {
+            const date = document.getElementById('ar-date').value;
+            const course = document.getElementById('ar-course').value.trim();
+            const score = parseFloat(document.getElementById('ar-score').value);
+            if (!date || !course || !score) { showMessage('ar-message', 'error', 'Date, course, and score required'); return; }
+            const hcp = parseFloat(document.getElementById('ar-hcp').value);
+            saveGolfRound({
+                date, course, score,
+                par: parseFloat(document.getElementById('ar-par').value) || 72,
+                putts: parseFloat(document.getElementById('ar-putts').value) || 0,
+                girPct: fracPct('ar-gir-hit', 'ar-gir-tot'),
+                accuracy: fracPct('ar-fw-hit', 'ar-fw-tot'),
+                avgDrive: parseFloat(document.getElementById('ar-avgdrive').value) || 0,
+                longestDrive: parseFloat(document.getElementById('ar-longdrive').value) || 0,
+                notes: document.getElementById('ar-notes').value,
+                handicapIndex: isNaN(hcp) ? null : hcp,
+                source: 'arccos'
+            });
+            showMessage('ar-message', 'success', `✓ Round logged: ${score} at ${course}`);
+            ['ar-course', 'ar-score', 'ar-putts', 'ar-fw-hit', 'ar-gir-hit', 'ar-avgdrive', 'ar-longdrive', 'ar-hcp', 'ar-notes'].forEach(id => document.getElementById(id).value = '');
+            document.getElementById('ar-par').value = '72';
+            document.getElementById('ar-fw-tot').value = '14';
+            document.getElementById('ar-gir-tot').value = '18';
+            arVsPar();
+            updateHandicapDisplay();
         }
 
         // Dashboard quick-entry: golf round — mirrors the Arccos round summary (fairways/greens as fractions)
@@ -3244,14 +3157,15 @@
             const el = document.getElementById('grint-calc-index');
             if (!el) return;
             const note = document.getElementById('grint-calc-note');
-            const usable = (appData.golf || []).filter(g => g.score > 0 && roundDifferential(g) != null);
-            const idx = computeHandicapIndex(appData.golf);
-            if (idx == null) {
+            const rounds = (appData.golf || []).filter(g => g.score > 0).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+            const latest = rounds.find(g => g.handicap != null);   // entered from Arccos, or computed
+            const val = latest ? latest.handicap : computeHandicapIndex(appData.golf);
+            if (val == null) {
                 el.textContent = '—';
-                if (note) note.textContent = `Log 3+ rounds with course rating & slope to calculate (have ${usable.length}).`;
+                if (note) note.textContent = 'Enter your Handicap Index from Arccos on a round (optional) to show it here.';
             } else {
-                el.textContent = idx.toFixed(1);
-                if (note) note.textContent = `From your best differentials across ${Math.min(usable.length, 20)} recent rounds.`;
+                el.textContent = Number(val).toFixed(1);
+                if (note) note.textContent = 'Your latest Handicap Index (from Arccos, or calculated from rounds with rating + slope).';
             }
         }
 
@@ -4095,7 +4009,7 @@
                 } else {
                     document.getElementById('current-handicap').textContent = '—';
                     trendArrow('handicap-arrow', null);
-                    document.getElementById('handicap-trend').textContent = 'Need rating + slope';
+                    document.getElementById('handicap-trend').textContent = 'Enter index from Arccos';
                     document.getElementById('handicap-trend').style.color = 'var(--text-secondary)';
                 }
 
@@ -5047,13 +4961,13 @@
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('cardio-date').value = today;
             onCardioTypeChange();
-            document.getElementById('grint-date').value = today;
+            const arDateEl = document.getElementById('ar-date'); if (arDateEl) arDateEl.value = today;
             document.getElementById('oura-date').value = today;
             document.getElementById('weight-date').value = today;
             document.getElementById('oura-api-token').value = appData.ouraToken || '';
             document.getElementById('oura-proxy-url').value = appData.ouraProxyUrl || '';
 
-            populateGolfSelects();
+            updateHandicapDisplay();
             renderAllGolfTable();
             renderOuraApiTable();
             renderCardioHistory();
