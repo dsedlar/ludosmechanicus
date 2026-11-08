@@ -875,6 +875,7 @@
             <button class="tab-btn" onclick="switchTab('reading')">Reading</button>
             <button class="tab-btn" onclick="switchTab('fasting')">Fasting</button>
             <button class="tab-btn" onclick="switchTab('meals')">Meals</button>
+            <button class="tab-btn" onclick="switchTab('budget')">Budget</button>
             <button class="tab-btn" onclick="switchTab('golf')">Golf</button>
             <button class="tab-btn" onclick="switchTab('summary')">Weekly Summary</button>
             <button class="tab-btn" onclick="switchTab('prs')">PRs</button>
@@ -1463,6 +1464,11 @@
             </div>
         </div>
 
+        <!-- BUDGET -->
+        <div id="budget" class="tab-content">
+            <div id="budget-root"></div>
+        </div>
+
         <!-- PERSONAL RECORDS -->
         <div id="prs" class="tab-content">
             <div class="section">
@@ -1660,6 +1666,7 @@
                 if (tabName === 'fasting') renderFasting();
                 if (tabName === 'dashboard') renderDashboard();
                 if (tabName === 'meals') { if (typeof renderMeals === 'function') renderMeals(); resizeMealFrame(); }
+                if (tabName === 'budget') { if (typeof renderBudget === 'function') renderBudget(); }
             }, 100);
         }
 
@@ -5060,6 +5067,7 @@
             d.perfectWeeks = d.perfectWeeks || [];
             d.supersets   = d.supersets   || {};
             d.mealPlan    = d.mealPlan    || null;
+            d.budget      = d.budget      || { transactions: [], budgets: {}, catRules: [] };
             d.progression = d.progression || {};
             migrateExerciseNames(d);                            // rename retired/fabricated exercises in place (keeps logged weights)
             if (d.currentWeek) reconcileWeek(d.currentWeek);   // bring saved week up to current template
@@ -5352,5 +5360,6 @@
         })();
     </script>
     <script src="./meals-engine.js"></script>
+    <script src="./budget.js"></script>
 </body>
 </html>
