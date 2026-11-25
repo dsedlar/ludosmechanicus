@@ -948,6 +948,21 @@
                 <div id="week-completion-display"></div>
             </div>
 
+            <!-- Exercise Progression -->
+            <div class="section">
+                <div class="section-title">
+                    <div class="section-icon"><i class="ti ti-trending-up"></i></div>
+                    Exercise Progression
+                </div>
+                <div class="info-box">Pick a movement to see your working weight climb week over week — proof the microdosing is driving adaptation.</div>
+                <select id="prog-exercise" onchange="renderProgression()" style="margin-bottom:12px; min-width:220px;"></select>
+                <div id="prog-note" style="font-size:13px; color:var(--text-secondary); margin-bottom:10px;"></div>
+                <div class="chart-container">
+                    <div class="chart-title">Working Weight by Week</div>
+                    <canvas id="progChart"></canvas>
+                </div>
+            </div>
+
             <style>
                 .day-selector-btn {
                     padding: 12px 8px;
@@ -1281,6 +1296,19 @@
                     <canvas id="cardioChart"></canvas>
                 </div>
             </div>
+
+            <div class="section">
+                <div class="section-title">
+                    <div class="section-icon"><i class="ti ti-bolt"></i></div>
+                    Peloton Power Trend
+                </div>
+                <div class="info-box">Total output (kJ) per Peloton ride — your cycling power over time. Climbing output is a strong signal for golf swing speed. Import rides above to populate this.</div>
+                <div id="peloton-trend-note" style="font-size:13px; color:var(--text-secondary); margin-bottom:10px;"></div>
+                <div class="chart-container">
+                    <div class="chart-title">Total Output per Ride (kJ)</div>
+                    <canvas id="pelotonChart"></canvas>
+                </div>
+            </div>
         </div>
 
         <!-- GOLF TAB -->
@@ -1553,6 +1581,15 @@
 
             <div class="section">
                 <div class="section-title">
+                    <div class="section-icon"><i class="ti ti-flag-cog"></i></div>
+                    What's Costing You Strokes
+                </div>
+                <div class="info-box">Your recent rounds (last 5) vs earlier — where you're gaining and leaking strokes. Green = better, red = worse.</div>
+                <div id="stroke-leaks"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">
                     <div class="section-icon"><i class="ti ti-chart-dots"></i></div>
                     HRV vs Golf Score
                 </div>
@@ -1696,6 +1733,7 @@
                     renderPRs();
                 }
                 if (tabName === 'strength') selectDay(todaysTrainingDay() || 1);
+                if (tabName === 'cardio') renderCardioCharts();
                 if (tabName === 'reading') renderReading();
                 if (tabName === 'fasting') renderFasting();
                 if (tabName === 'dashboard') renderDashboard();
@@ -2342,6 +2380,8 @@
             renderTodaySession();
             renderDaySelector(dayNum);
             renderWorkout(dayNum);
+            populateProgressionSelect();
+            renderProgression();
         }
 
         function getPreviousWeight(exerciseName) {
@@ -2619,6 +2659,47 @@
             saveData(appData);
             renderWorkout(dayNum);
             checkWeekCompletion();
+        }
+
+        // ---- Exercise progression chart (working weight by week, tracked per slot) ----
+        function strengthWeeksSorted() {
+            const weeks = [...(appData.weekHistory || [])];
+            if (appData.currentWeek) weeks.push(appData.currentWeek);
+            return weeks.filter(Boolean).sort((a, b) => (a.weekNum || 0) - (b.weekNum || 0));
+        }
+        function populateProgressionSelect() {
+            const sel = document.getElementById('prog-exercise'); if (!sel) return;
+            const cur = sel.value;
+            const days = (appData.currentWeek && appData.currentWeek.days) || {};
+            const opts = [];
+            Object.keys(days).forEach((dk, di) => (days[dk].exercises || []).forEach((ex, i) => {
+                if (ex.cat === 'finisher' || ex.cat === 'mobility') return;
+                opts.push(`<option value="${dk}:${i}">Day ${di + 1} · ${ex.name}</option>`);
+            }));
+            sel.innerHTML = opts.join('');
+            if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+        }
+        function renderProgression() {
+            const sel = document.getElementById('prog-exercise'); const el = document.getElementById('progChart'); if (!sel || !el || !window.Chart) return;
+            const note = document.getElementById('prog-note');
+            const [dk, idxS] = (sel.value || '').split(':'); const idx = parseInt(idxS, 10);
+            if (window.progChartInstance) { window.progChartInstance.destroy(); window.progChartInstance = null; }
+            if (!dk || isNaN(idx)) { el.style.display = 'none'; if (note) note.textContent = ''; return; }
+            const series = strengthWeeksSorted().map(w => { const d = w.days && w.days[dk]; const ex = d && d.exercises && d.exercises[idx]; return { label: 'W' + w.weekNum, weight: ex ? (ex.weight || 0) : 0, name: ex ? ex.name : '' }; });
+            const loaded = series.filter(s => s.weight > 0);
+            if (loaded.length < 1) { el.style.display = 'none'; if (note) note.textContent = 'Log some working weight on this movement and your progression will chart here.'; return; }
+            el.style.display = 'block';
+            if (note) {
+                const first = loaded[0].weight, last = series[series.length - 1].weight || loaded[loaded.length - 1].weight;
+                const names = [...new Set(series.map(s => s.name).filter(Boolean))];
+                const levelUp = names.length > 1 ? ` · leveled up to <strong>${names[names.length - 1]}</strong>` : '';
+                note.innerHTML = `From <strong>${first}</strong> to <strong>${last} lb</strong> over ${series.length} week${series.length === 1 ? '' : 's'}${levelUp}.`;
+            }
+            window.progChartInstance = new Chart(el, {
+                type: 'line',
+                data: { labels: series.map(s => s.label), datasets: [{ label: 'Weight (lb)', data: series.map(s => s.weight || null), borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.12)', borderWidth: 2, tension: 0.3, pointRadius: 4, spanGaps: true, fill: true }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } } } }
+            });
         }
 
         function renderWeekCompletion() {
@@ -3507,6 +3588,23 @@
             return (ensureFasting().log || []).filter(l => l.hours > 0 && sleepByDate[l.date] != null)
                 .map(l => ({ hours: l.hours, sleep: sleepByDate[l.date] }));
         }
+        // Avg Peloton output (kJ) in the window before a date — cycling power as a proxy.
+        function pelotonOutputInWindow(endDateStr, winDays) {
+            const end = new Date(endDateStr); const start = new Date(end); start.setDate(start.getDate() - (winDays || 28));
+            const outs = (appData.cardio || []).filter(c => c.source === 'peloton' && c.output > 0 && c.date)
+                .filter(c => { const d = new Date(c.date); return d > start && d <= end; }).map(c => c.output);
+            return outs.length ? outs.reduce((a, b) => a + b, 0) / outs.length : 0;
+        }
+        // Rounds paired with recent cycling power (avg Peloton output in the prior 4 weeks).
+        function cyclingPowerPairs() {
+            return (appData.golf || []).filter(g => g.avgDrive > 0 && g.date)
+                .map(g => ({ drive: g.avgDrive, power: pelotonOutputInWindow(g.date, 28) })).filter(p => p.power > 0);
+        }
+        // Peloton sessions over time, for the output trend chart.
+        function pelotonSeries() {
+            return (appData.cardio || []).filter(c => c.source === 'peloton' && c.output > 0 && c.date)
+                .map(c => ({ date: c.date, output: c.output })).sort((a, b) => new Date(a.date) - new Date(b.date));
+        }
         // Each weight reading paired with total fasting hours in the prior 7 days.
         function fastingWeightPairs() {
             const log = (ensureFasting().log || []);
@@ -3566,6 +3664,13 @@
                         ? `Need ≥2 rounds with an avg drive logged (have ${p.length}).`
                         : `Positive is good: more microdosing sessions in the prior 4 weeks → longer drives. ${p.length} rounds.`
                 }; })(),
+                (() => { const p = cyclingPowerPairs(); return {
+                    name: 'Cycling Power → Driving Distance',
+                    value: calculateCorrelation(p.map(x => x.power), p.map(x => x.drive)),
+                    description: p.length < 2
+                        ? `Import Peloton rides + log avg drive on ≥2 rounds to see this (have ${p.length}).`
+                        : `Positive is good: more Peloton output in the prior 4 weeks → longer drives. ${p.length} rounds.`
+                }; })(),
                 (() => { const p = fastingSleepPairs(); return {
                     name: 'Fasting Length → Sleep Score',
                     value: calculateCorrelation(p.map(x => x.hours), p.map(x => x.sleep)),
@@ -3595,9 +3700,55 @@
 
             // Render charts
             renderGolfPayoffChart();
+            renderStrokeLeaks();
             renderHrvGolfChart();
             renderSleepPerformanceChart();
             renderCardioViscerChart();
+        }
+
+        // "What's costing you strokes": recent (last 5) vs earlier rounds across the scoring levers,
+        // then name the biggest leak with a rough stroke estimate.
+        function renderStrokeLeaks() {
+            const host = document.getElementById('stroke-leaks'); if (!host) return;
+            const rounds = (appData.golf || []).filter(g => g.score > 0 && g.date).slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+            if (rounds.length < 3) { host.innerHTML = `<div style="color:var(--text-secondary);">Log at least 3 rounds (with putts, GIR and fairways) to see this — ${rounds.length} so far.</div>`; return; }
+            const recent = rounds.slice(-5);
+            const earlier = rounds.length > 5 ? rounds.slice(0, -5) : rounds.slice(0, Math.max(1, rounds.length - recent.length));
+            const avg = (arr, f) => { const v = arr.map(f).filter(x => x > 0 || x === 0); const nz = v.filter(x => x !== 0 || true); return nz.length ? nz.reduce((a, b) => a + b, 0) / nz.length : null; };
+            const metrics = [
+                { key: 'score', label: 'Scoring vs par', f: g => (g.vsPar != null ? g.vsPar : g.score - (g.par || 72)), lower: true, fmt: v => (v > 0 ? '+' : '') + v.toFixed(1) },
+                { key: 'putts', label: 'Putts / round', f: g => g.putts || 0, lower: true, fmt: v => v.toFixed(1) },
+                { key: 'gir', label: 'Greens in reg', f: g => g.girPct || 0, lower: false, fmt: v => Math.round(v) + '%' },
+                { key: 'fw', label: 'Fairways hit', f: g => g.accuracy || 0, lower: false, fmt: v => Math.round(v) + '%' }
+            ];
+            let worst = null;
+            const tiles = metrics.map(m => {
+                const rv = avg(recent, m.f), ev = avg(earlier, m.f);
+                const has = rv != null;
+                const delta = (rv != null && ev != null) ? rv - ev : null;
+                const better = delta == null ? null : (m.lower ? delta < 0 : delta > 0);
+                const regress = delta == null ? 0 : (m.lower ? delta : -delta);   // >0 means worse
+                if (has && regress > (worst ? worst.regress : 0.0001) && m.key !== 'score') worst = { ...m, rv, ev, delta, regress };
+                const col = better == null ? 'var(--text-secondary)' : better ? 'var(--success)' : 'var(--accent-power)';
+                const arrow = better == null ? '' : (m.lower ? (delta < 0 ? '↓' : '↑') : (delta > 0 ? '↑' : '↓'));
+                const deltaTxt = delta == null ? '' : `${arrow} ${Math.abs(delta).toFixed(m.key === 'score' || m.key === 'putts' ? 1 : 0)}${m.key === 'gir' || m.key === 'fw' ? '%' : ''}`;
+                return `<div style="flex:1; min-width:120px; background:var(--bg-hover); border:1px solid var(--border); border-radius:10px; padding:12px;">
+                    <div style="font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-secondary);">${m.label}</div>
+                    <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:22px; color:var(--text-primary);">${has ? m.fmt(rv) : '—'}</div>
+                    <div style="font-size:12px; color:${col};">${deltaTxt || 'vs earlier: —'}</div>
+                </div>`;
+            }).join('');
+            // headline
+            const rPutts = avg(recent, g => g.putts || 0);
+            let headline;
+            if (worst) {
+                const dir = worst.key === 'putts' ? 'up' : 'down';
+                headline = `Biggest leak: <strong>${worst.label.toLowerCase()}</strong> is trending the wrong way (${dir} ${Math.abs(worst.delta).toFixed(worst.key === 'putts' ? 1 : 0)}${worst.key === 'gir' || worst.key === 'fw' ? ' pts' : ''} vs earlier).`;
+            } else {
+                headline = `Everything's holding or improving — keep doing what you're doing.`;
+            }
+            if (rPutts && rPutts > 32) headline += ` Putting is the fastest fix: you're averaging <strong>${rPutts.toFixed(1)}</strong> putts — getting to 30 would save ~<strong>${(rPutts - 30).toFixed(0)}</strong> strokes/round.`;
+            host.innerHTML = `<div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">${tiles}</div><div style="font-size:14px; color:var(--text-primary); line-height:1.6;">${headline}</div>`;
         }
 
         // Dual-axis: avg driving distance per round (left) vs strength sessions in the prior 4 weeks (right).
@@ -3983,10 +4134,41 @@
             pelotonPending = [];
             flagNewPRs();
             saveData(appData);
-            updateStats(); renderCardioHistory(); renderTrainingLog(); renderDashboard();
+            updateStats(); renderCardioHistory(); renderTrainingLog(); renderDashboard(); renderCardioCharts();
             document.getElementById('peloton-preview').innerHTML = '';
             const fi = document.getElementById('peloton-file'); if (fi) fi.value = '';
             showMessage('peloton-import-msg', 'success', `✓ Imported ${n} Peloton workout${n === 1 ? '' : 's'} into your cardio log.`);
+        }
+
+        // Cardio tab charts: weekly duration bars + Peloton output trend.
+        function renderCardioCharts() {
+            // Weekly duration (bars)
+            const cEl = document.getElementById('cardioChart');
+            if (cEl && window.Chart) {
+                const byWk = {};
+                (appData.cardio || []).forEach(c => { if (!c.date) return; const d = new Date(c.date); const onejan = new Date(d.getFullYear(), 0, 1); const wk = d.getFullYear() + '-W' + String(Math.ceil((((d - onejan) / 86400000) + onejan.getDay() + 1) / 7)).padStart(2, '0'); byWk[wk] = (byWk[wk] || 0) + (c.duration || 0); });
+                const labels = Object.keys(byWk).sort().slice(-12);
+                if (window.cardioChartInstance) window.cardioChartInstance.destroy();
+                window.cardioChartInstance = new Chart(cEl, {
+                    type: 'bar',
+                    data: { labels, datasets: [{ label: 'Minutes', data: labels.map(k => byWk[k]), backgroundColor: '#06b6d4', borderRadius: 6 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } } } }
+                });
+            }
+            // Peloton output trend (line)
+            const pEl = document.getElementById('pelotonChart');
+            const note = document.getElementById('peloton-trend-note');
+            if (!pEl || !window.Chart) return;
+            const s = pelotonSeries();
+            if (window.pelotonChartInstance) { window.pelotonChartInstance.destroy(); window.pelotonChartInstance = null; }
+            if (s.length < 2) { pEl.style.display = 'none'; if (note) note.textContent = `Import your Peloton rides to see output trending here — ${s.length} so far.`; return; }
+            pEl.style.display = 'block';
+            if (note) { const first = s[0].output, last = s[s.length - 1].output, best = Math.max(...s.map(x => x.output)); note.innerHTML = `Latest ride <strong>${last} kJ</strong> · best <strong>${best} kJ</strong> · ${last >= first ? 'up' : 'down'} from <strong>${first}</strong> when you started. ${s.length} rides.`; }
+            window.pelotonChartInstance = new Chart(pEl, {
+                type: 'line',
+                data: { labels: s.map(x => x.date), datasets: [{ label: 'Output (kJ)', data: s.map(x => x.output), borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.12)', borderWidth: 2, tension: 0.3, pointRadius: 3, fill: true }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }, y: { beginAtZero: true, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } } } }
+            });
         }
 
         // Dashboard quick-entry: cardio (core fields; full detail still on the Cardio tab)
@@ -5454,20 +5636,32 @@
                     : `🏋️ Today: <strong>${name}</strong> <span style="color:var(--text-secondary);">· ~15 min · ${tone}</span>`;
             }
 
-            // --- Fasting status ---
+            // --- Fasting status + eating window ---
             const f = appData.fasting || {};
-            let fastLine = '';
+            let fastLine = '', windowOpen = true, breakWhen = '';
             if (f.activeStart) {
                 const ms = Date.now() - new Date(f.activeStart).getTime();
                 const goalMs = (f.goalHours || 18) * 3600000;
                 const elapsedH = (ms / 3600000).toFixed(1);
                 if (ms >= goalMs) {
                     fastLine = `⏱️ Fasting <strong>${elapsedH}h</strong> — 🎉 past your ${f.goalHours}h goal, good to eat.`;
+                    windowOpen = true; breakWhen = 'now';
                 } else {
                     const end = new Date(new Date(f.activeStart).getTime() + goalMs);
                     const leftH = ((goalMs - ms) / 3600000).toFixed(1);
                     fastLine = `⏱️ Fasting <strong>${elapsedH}h</strong> — ${leftH}h left, ends ${fmtFastEnd(end)}.`;
+                    windowOpen = false; breakWhen = fmtFastEnd(end);
                 }
+            }
+
+            // --- What to eat today (from the meal plan, framed around the fast) ---
+            let eatLine = '';
+            const meal = todaysMeal();
+            if (meal) {
+                const when = f.activeStart ? (windowOpen ? '· break your fast now' : `· break your fast ${breakWhen}`) : '';
+                eatLine = `🍽️ Today's meal: <strong>${meal.t}</strong> <span style="color:var(--text-secondary);">${when}</span><div style="color:var(--text-secondary); font-size:13px; margin-top:1px;">Your one big meal — protein-forward, size it up, pile on the veg.</div>`;
+            } else if (!appData.mealPlan || !appData.mealPlan.rot) {
+                eatLine = `🍽️ <span style="color:var(--text-secondary);">Generate a meal plan on the <strong>Meals</strong> tab to see today's dinner here.</span>`;
             }
 
             host.innerHTML = `
@@ -5480,7 +5674,17 @@
                     <div>${trainLine}</div>
                     <div style="color:var(--text-secondary); margin-top:2px;">${readyGuide}</div>
                     ${fastLine ? `<div style="margin-top:6px;">${fastLine}</div>` : ''}
+                    ${eatLine ? `<div style="margin-top:6px;">${eatLine}</div>` : ''}
                 </div>`;
+        }
+        // Today's planned dinner (Dad's OMAD meal) from the deterministic meal plan, matched by weekday.
+        function todaysMeal() {
+            const mp = appData.mealPlan;
+            if (!mp || !mp.rot || typeof window.buildMealPlan !== 'function') return null;
+            let plan; try { plan = window.buildMealPlan(mp.rot, mp.weekOf); } catch (e) { return null; }
+            const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+            const d = (plan.days || []).find(x => x.day === todayName);
+            return d && d.dinner ? d.dinner : null;
         }
 
         // ============ INITIALIZATION ============
