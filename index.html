@@ -1524,6 +1524,19 @@
 
             <div class="section">
                 <div class="section-title">
+                    <div class="section-icon"><i class="ti ti-barbell"></i></div>
+                    Strength → Driving Distance
+                </div>
+                <div class="info-box">Does the microdosing pay off on the course? Avg driving distance per round vs the strength sessions you banked in the 4 weeks before it.</div>
+                <div id="golf-payoff-note" style="font-size:13px; color:var(--text-secondary); margin-bottom:10px;"></div>
+                <div class="chart-container">
+                    <div class="chart-title">Driving Distance vs Training Load</div>
+                    <canvas id="golfPayoffChart"></canvas>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">
                     <div class="section-icon"><i class="ti ti-chart-dots"></i></div>
                     HRV vs Golf Score
                 </div>
@@ -3541,6 +3554,42 @@
                 .sort((a, b) => new Date(a.date) - new Date(b.date));
         }
 
+        // ---- Training → performance helpers (golf payoff + fasting) ----
+        // All completed strength-day dates across the live week + history.
+        function allStrengthDays() {
+            const out = [];
+            const addWk = w => Object.values((w && w.days) || {}).forEach(d => { if (d && d.completed && d.completedDate) out.push(d.completedDate); });
+            if (appData.currentWeek) addWk(appData.currentWeek);
+            (appData.weekHistory || []).forEach(addWk);
+            return out;
+        }
+        // How many strength sessions were logged in the `winDays` before a date (default 28 ≈ 4 microdosing weeks).
+        function strengthDaysInWindow(endDateStr, winDays) {
+            const end = new Date(endDateStr); const start = new Date(end); start.setDate(start.getDate() - (winDays || 28));
+            return allStrengthDays().filter(ds => { const d = new Date(ds); return d > start && d <= end; }).length;
+        }
+        // Each round with a recorded avg drive, paired with the training load leading into it.
+        function golfPowerPairs() {
+            return (appData.golf || []).filter(g => g.avgDrive > 0 && g.date)
+                .map(g => ({ date: g.date, drive: g.avgDrive, load: strengthDaysInWindow(g.date, 28) }))
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+        }
+        // Fasts matched to that date's Oura sleep score.
+        function fastingSleepPairs() {
+            const sleepByDate = {}; (appData.ouraApiData || []).forEach(o => { if (o.sleepScore > 0) sleepByDate[o.date] = o.sleepScore; });
+            return (ensureFasting().log || []).filter(l => l.hours > 0 && sleepByDate[l.date] != null)
+                .map(l => ({ hours: l.hours, sleep: sleepByDate[l.date] }));
+        }
+        // Each weight reading paired with total fasting hours in the prior 7 days.
+        function fastingWeightPairs() {
+            const log = (ensureFasting().log || []);
+            return (appData.ouraApiData || []).filter(o => o.weight > 0).map(o => {
+                const end = new Date(o.date); const start = new Date(end); start.setDate(start.getDate() - 7);
+                const sumH = log.filter(l => { const d = new Date(l.date); return d > start && d <= end; }).reduce((s, l) => s + (l.hours || 0), 0);
+                return { fast: sumH, weight: o.weight };
+            }).filter(p => p.fast > 0);
+        }
+
         function renderCorrelations() {
             const container = document.getElementById('correlations-container');
             container.innerHTML = '';
@@ -3582,7 +3631,28 @@
                     description: visSeries.length < 2
                         ? `Log visceral fat on ≥2 dates to see this (have ${visSeries.length}).`
                         : `Negative is good: more cardio → lower visceral fat. ${visSeries.length} measurements.`
-                }
+                },
+                (() => { const p = golfPowerPairs(); return {
+                    name: 'Strength Volume → Driving Distance',
+                    value: calculateCorrelation(p.map(x => x.load), p.map(x => x.drive)),
+                    description: p.length < 2
+                        ? `Need ≥2 rounds with an avg drive logged (have ${p.length}).`
+                        : `Positive is good: more microdosing sessions in the prior 4 weeks → longer drives. ${p.length} rounds.`
+                }; })(),
+                (() => { const p = fastingSleepPairs(); return {
+                    name: 'Fasting Length → Sleep Score',
+                    value: calculateCorrelation(p.map(x => x.hours), p.map(x => x.sleep)),
+                    description: p.length < 2
+                        ? `Need ≥2 fasts on days with an Oura sleep score (have ${p.length}).`
+                        : `Positive = longer fasts track with better sleep; negative = they cost you sleep. ${p.length} nights.`
+                }; })(),
+                (() => { const p = fastingWeightPairs(); return {
+                    name: 'Fasting Volume → Weight',
+                    value: calculateCorrelation(p.map(x => x.fast), p.map(x => x.weight)),
+                    description: p.length < 2
+                        ? `Need ≥2 weight readings with fasting logged in the prior week (have ${p.length}).`
+                        : `Negative is good: more fasting hours in the prior week → lower weight. ${p.length} readings.`
+                }; })()
             ];
 
             correlations.forEach(corr => {
@@ -3597,9 +3667,47 @@
             });
 
             // Render charts
+            renderGolfPayoffChart();
             renderHrvGolfChart();
             renderSleepPerformanceChart();
             renderCardioViscerChart();
+        }
+
+        // Dual-axis: avg driving distance per round (left) vs strength sessions in the prior 4 weeks (right).
+        function renderGolfPayoffChart() {
+            const ctx = document.getElementById('golfPayoffChart'); if (!ctx) return;
+            const pairs = golfPowerPairs();
+            const note = document.getElementById('golf-payoff-note');
+            if (window.golfPayoffInstance) { window.golfPayoffInstance.destroy(); window.golfPayoffInstance = null; }
+            if (pairs.length < 2) {
+                ctx.style.display = 'none';
+                if (note) note.textContent = `Log avg driving distance on your rounds (Arccos form) to see this — ${pairs.length} so far, need at least 2.`;
+                return;
+            }
+            ctx.style.display = 'block';
+            if (note) {
+                const first = pairs[0].drive, last = pairs[pairs.length - 1].drive;
+                const delta = last - first;
+                note.innerHTML = `Avg drive went from <strong>${first}</strong> to <strong>${last} yds</strong> (${delta >= 0 ? '+' : ''}${delta.toFixed(0)}) across ${pairs.length} rounds. The blue line is your training load leading into each round — when they rise together, the work is transferring.`;
+            }
+            window.golfPayoffInstance = new Chart(ctx, {
+                data: {
+                    labels: pairs.map(p => p.date),
+                    datasets: [
+                        { type: 'line', label: 'Avg drive (yds)', data: pairs.map(p => p.drive), yAxisID: 'y', borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.12)', borderWidth: 2, tension: 0.3, pointRadius: 4, fill: true },
+                        { type: 'line', label: 'Strength sessions / prior 4 wks', data: pairs.map(p => p.load), yAxisID: 'y1', borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)', borderWidth: 2, borderDash: [5, 4], tension: 0.3, pointRadius: 3, fill: false }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#cbd5e1' } } },
+                    scales: {
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                        y: { position: 'left', title: { display: true, text: 'Avg drive (yds)', color: '#f59e0b' }, ticks: { color: '#cbd5e1' }, grid: { color: '#334155' } },
+                        y1: { position: 'right', title: { display: true, text: 'Sessions / 4 wks', color: '#60a5fa' }, ticks: { color: '#cbd5e1' }, grid: { drawOnChartArea: false }, beginAtZero: true }
+                    }
+                }
+            });
         }
 
         function renderHrvGolfChart() {
