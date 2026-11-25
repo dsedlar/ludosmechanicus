@@ -4799,8 +4799,15 @@
             if (window.fastingInterval) { clearInterval(window.fastingInterval); window.fastingInterval = null; }
             if (active) {
                 if (f.activeStart) {
+                    const sinceLine = fastEditingStart
+                        ? `<div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:4px;">
+                                <input id="fast-active-start" type="datetime-local" value="${toLocalInput(f.activeStart)}" max="${toLocalInput(new Date().toISOString())}" style="background:var(--bg-hover); border:1px solid var(--accent); color:var(--text-primary); border-radius:4px; padding:4px 6px;">
+                                <button class="btn-secondary" onclick="saveFastStart()" style="padding:4px 10px;">Save</button>
+                                <button class="btn-secondary" onclick="cancelFastStart()" style="padding:4px 10px;">Cancel</button>
+                           </div>`
+                        : `<div style="font-size:12px; color:var(--text-secondary);">Fasting since ${new Date(f.activeStart).toLocaleString()} <a onclick="editFastStart()" style="color:var(--accent); cursor:pointer; margin-left:6px; white-space:nowrap;">✎ Edit start</a></div>`;
                     active.innerHTML = `<div style="background:var(--bg-hover); border-left:3px solid var(--accent); border-radius:0 10px 10px 0; padding:16px;">
-                        <div style="font-size:12px; color:var(--text-secondary);">Fasting since ${new Date(f.activeStart).toLocaleString()}</div>
+                        ${sinceLine}
                         <div style="font-family:'Space Grotesk', sans-serif; font-size:30px; font-weight:700; color:var(--primary); margin:6px 0;" id="fasting-elapsed">—</div>
                         <div style="background:var(--bg-card); border-radius:6px; height:8px; overflow:hidden; margin-bottom:12px;"><div id="fasting-bar" style="height:100%; width:0%; background:var(--grad);"></div></div>
                         <button class="btn-primary" onclick="endFast()">End fast</button>
@@ -4827,6 +4834,24 @@
             }).join('');
             updateStats();
         }
+        // Adjust the start time of the fast that's currently running (e.g. "I actually started 3h ago").
+        let fastEditingStart = false;
+        function editFastStart() { fastEditingStart = true; renderFasting(); }
+        function cancelFastStart() { fastEditingStart = false; renderFasting(); }
+        function saveFastStart() {
+            const f = ensureFasting(); if (!f.activeStart) return;
+            const el = document.getElementById('fast-active-start'); const v = el && el.value;
+            if (v) {
+                const start = new Date(v);
+                if (isNaN(start)) { alert('Enter a valid start time.'); return; }
+                if (start > new Date()) { alert("Start time can't be in the future."); return; }
+                f.activeStart = start.toISOString();
+                saveData(appData);
+            }
+            fastEditingStart = false;
+            renderFasting(); renderDashboard();
+        }
+
         let fastEditIdx = null;
         function editFastRow(i) { fastEditIdx = i; renderFasting(); }
         function cancelFastRow() { fastEditIdx = null; renderFasting(); }
