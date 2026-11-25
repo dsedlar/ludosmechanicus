@@ -926,8 +926,12 @@
                 </div>
             </div>
 
+            <!-- One-tap load of the new program when the saved week is stale -->
+            <div id="program-banner" style="display:none;"></div>
+
             <!-- Day Selector -->
             <div class="section">
+                <div id="today-session" style="margin-bottom:12px;"></div>
                 <div id="day-selector" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 8px; margin-bottom: 20px;"></div>
             </div>
 
@@ -1662,6 +1666,7 @@
                 if (tabName === 'prs') {
                     renderPRs();
                 }
+                if (tabName === 'strength') selectDay(todaysTrainingDay() || 1);
                 if (tabName === 'reading') renderReading();
                 if (tabName === 'fasting') renderFasting();
                 if (tabName === 'dashboard') renderDashboard();
@@ -2148,6 +2153,12 @@
         // system scales to any number of days (microdosing uses 6).
         const DAY_KEYS = Object.keys(WORKOUT_TEMPLATE);
         const NUM_DAYS = DAY_KEYS.length;
+        // Bump this whenever the template structure changes — a week stamped with an older
+        // version is "stale" and the Strength tab offers a one-tap load of the new program.
+        const PROGRAM_VERSION = 'microdose-6day-v1';
+        function currentProgramIsStale() { return !appData.currentWeek || appData.currentWeek.programVersion !== PROGRAM_VERSION; }
+        // Mon→Day1 … Sat→Day6, Sun(0)=rest. getDay(): Sun=0,Mon=1,…,Sat=6 maps straight across.
+        function todaysTrainingDay() { const d = new Date().getDay(); return d === 0 ? 0 : Math.min(d, NUM_DAYS); }
 
         // Generic full-body bodyweight routine (no equipment) — used when there's no weight room
         const BODYWEIGHT_TEMPLATE = [
@@ -2209,7 +2220,8 @@
                 weekNum: weekNum,
                 startDate: new Date(),
                 days: {},
-                completed: false
+                completed: false,
+                programVersion: PROGRAM_VERSION
             };
 
             DAY_KEYS.forEach(dayKey => {
@@ -2236,19 +2248,69 @@
             return week;
         }
 
-        // Builds the Day 1..N selector buttons from the template so it tracks NUM_DAYS.
+        // "Day 2: Upper Power" → "Upper Power"
+        function shortFromName(name) { return (name || '').replace(/^Day\s*\d+:\s*/i, ''); }
+        // Builds the selector from the ACTUAL loaded week (so labels always match the content).
+        // Clean template short labels are used once the current program is loaded; while stale,
+        // we fall back to the old week's own names. Today's session gets a ring + "TODAY" tag.
         function renderDaySelector(activeDay) {
             const host = document.getElementById('day-selector');
             if (!host) return;
-            host.innerHTML = DAY_KEYS.map((dk, i) => {
+            const days = (appData.currentWeek && appData.currentWeek.days) || {};
+            const keys = Object.keys(days);
+            const stale = currentProgramIsStale();
+            const today = todaysTrainingDay();
+            host.innerHTML = keys.map((dk, i) => {
                 const n = i + 1;
-                const t = WORKOUT_TEMPLATE[dk] || {};
-                const short = t.short || t.type || '';
-                return `<button class="day-selector-btn${n === activeDay ? ' active' : ''}" onclick="selectDay(${n})">Day ${n}<br><span style="font-size: 11px; color: var(--text-secondary);">${short}</span></button>`;
+                const day = days[dk] || {};
+                const tmpl = WORKOUT_TEMPLATE[dk] || {};
+                const short = stale ? (shortFromName(day.name) || day.type || '') : (tmpl.short || day.short || shortFromName(day.name) || '');
+                const isToday = n === today;
+                const ring = isToday ? 'box-shadow:0 0 0 2px var(--success);' : '';
+                const tag = isToday ? `<span style="display:block; font-size:9px; font-weight:700; letter-spacing:.05em; color:var(--success);">TODAY</span>` : '';
+                return `<button class="day-selector-btn${n === activeDay ? ' active' : ''}" style="${ring}" onclick="selectDay(${n})">Day ${n}<br><span style="font-size: 11px; color: var(--text-secondary);">${short}</span>${tag}</button>`;
             }).join('');
         }
 
+        // "Today · Day 2: Rotational Speed" (or a rest-day note on Sundays).
+        function renderTodaySession() {
+            const host = document.getElementById('today-session'); if (!host) return;
+            if (currentProgramIsStale()) { host.innerHTML = ''; return; }   // banner handles the stale case
+            const t = todaysTrainingDay();
+            if (!t) {
+                host.innerHTML = `<div style="font-size:13px; color:var(--text-secondary);">🌙 Today is your rest / reset day. Tap any session if you want to get ahead.</div>`;
+                return;
+            }
+            const day = (appData.currentWeek && appData.currentWeek.days['day' + t]) || {};
+            const done = day.completed;
+            host.innerHTML = `<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:14px;">
+                <span style="font-weight:700; color:var(--success);">Today</span>
+                <span style="color:var(--text-secondary);">·</span>
+                <span style="font-weight:600; color:var(--text-primary);">${day.name || ('Day ' + t)}</span>
+                ${done ? '<span style="color:var(--success);">✓ done</span>' : '<span style="font-size:12px; color:var(--text-secondary);">~15 min</span>'}
+            </div>`;
+        }
+
+        // Stale-program banner: one tap loads the current template as a fresh Week 1.
+        function renderProgramBanner() {
+            const host = document.getElementById('program-banner'); if (!host) return;
+            if (!currentProgramIsStale()) { host.style.display = 'none'; host.innerHTML = ''; return; }
+            host.style.display = 'block';
+            host.innerHTML = `<div style="background:var(--bg-hover); border:1px solid var(--accent); border-left:4px solid var(--accent); border-radius:12px; padding:16px; margin-bottom:16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+                <div style="flex:1; min-width:220px;">
+                    <div style="font-weight:700; color:var(--text-primary);">⚡ New 6-day microdosing program ready</div>
+                    <div style="font-size:13px; color:var(--text-secondary); margin-top:3px;">You're still on the old plan. Load the new short-session program — 6 × ~15 min, golf-power biased. Saves a backup first; golf / sleep / cardio / fasting data are untouched.</div>
+                </div>
+                <button class="btn-primary" onclick="resetStrengthToWeek1()" style="white-space:nowrap;">Load it</button>
+            </div>`;
+        }
+
         function selectDay(dayNum) {
+            // Clamp to a day that actually exists so the selector highlight and content stay in sync.
+            const days = (appData.currentWeek && appData.currentWeek.days) || {};
+            if (!days['day' + dayNum]) { const first = Object.keys(days)[0]; dayNum = first ? parseInt(first.replace('day', ''), 10) : 1; }
+            renderProgramBanner();
+            renderTodaySession();
             renderDaySelector(dayNum);
             renderWorkout(dayNum);
         }
@@ -2361,9 +2423,16 @@
 
         function renderWorkout(dayNum) {
             const currentWeek = appData.currentWeek;
-            const dayKey = 'day' + dayNum;
+            let dayKey = 'day' + dayNum;
+            // Guard: a stale/old week may not have this day (e.g. day5 on the old 4-day plan).
+            // Fall back to the first day that exists so the tab never renders blank/crashes.
+            if (!currentWeek || !currentWeek.days[dayKey]) {
+                const first = currentWeek && Object.keys(currentWeek.days || {})[0];
+                if (!first) return;
+                dayKey = first; dayNum = parseInt(first.replace('day', ''), 10);
+            }
             const day = currentWeek.days[dayKey];
-            
+
             let html = `
                 <div style="margin-bottom: 12px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 12px; flex-wrap: wrap;">
@@ -2678,7 +2747,7 @@
             // supersets kept (user chose to keep their tweaks)
             saveData(appData);
             const el = document.getElementById('current-week-num'); if (el) el.textContent = '1';
-            selectDay(1);
+            selectDay(todaysTrainingDay() || 1);
             updateStats();
             if (typeof renderDashboard === 'function') renderDashboard();
             showMessage('reset-message', 'success', '✓ Strength reset — fresh Week 1. Everything else is untouched.');
