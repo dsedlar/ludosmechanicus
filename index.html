@@ -1427,6 +1427,10 @@
                         <label style="font-size:13px; color:var(--text-secondary);">Custom goal (hours):</label>
                         <input type="number" id="fast-goal" min="1" max="72" step="0.5" style="width:90px;" onchange="setFastGoal(this.value)">
                     </div>
+                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-secondary); margin-top:14px; cursor:pointer;">
+                        <input type="checkbox" id="fast-remind" onchange="setFastRemind(this.checked)"> 🔔 Remind me when my fast ends
+                    </label>
+                    <div id="fast-remind-note" style="font-size:12px; color:var(--text-secondary); margin-top:4px;"></div>
                 </div>
             </div>
             <div class="section">
@@ -4844,18 +4848,80 @@
         }
 
         // ============ FASTING ============
-        function ensureFasting() { appData.fasting = appData.fasting || { activeStart: null, goalHours: 18, log: [] }; return appData.fasting; }
-        function startFast() { const f = ensureFasting(); f.activeStart = new Date().toISOString(); saveData(appData); renderFasting(); renderDashboard(); }
+        function ensureFasting() { appData.fasting = appData.fasting || { activeStart: null, goalHours: 18, log: [] }; if (appData.fasting.remindOnEnd === undefined) appData.fasting.remindOnEnd = true; return appData.fasting; }
+        function startFast() {
+            const f = ensureFasting();
+            f.activeStart = new Date().toISOString();
+            f.goalNotifiedFor = null;                 // fresh fast — reminder can fire again
+            if (f.remindOnEnd) requestFastNotifyPermission();   // ask on a user gesture (the tap)
+            saveData(appData); renderFasting(); renderDashboard(); ensureFastWatcher();
+        }
         function endFast() {
             const f = ensureFasting(); if (!f.activeStart) return;
             const start = new Date(f.activeStart), end = new Date();
             const hours = Math.round((end - start) / 3600000 * 10) / 10;
             f.log = f.log || [];
             f.log.unshift({ date: start.toISOString().slice(0, 10), start: f.activeStart, end: end.toISOString(), hours, type: hours >= 24 ? 'Prolonged' : 'Intermittent', goal: f.goalHours });
-            f.activeStart = null;
+            f.activeStart = null; f.goalNotifiedFor = null;
             saveData(appData); renderFasting(); renderDashboard();
         }
-        function cancelFast() { const f = ensureFasting(); f.activeStart = null; saveData(appData); renderFasting(); renderDashboard(); }
+        function cancelFast() { const f = ensureFasting(); f.activeStart = null; f.goalNotifiedFor = null; saveData(appData); renderFasting(); renderDashboard(); }
+
+        // ---- Fast-complete reminder: reliable in-app alert + best-effort OS notification ----
+        function setFastRemind(on) {
+            const f = ensureFasting(); f.remindOnEnd = !!on; saveData(appData);
+            if (on) requestFastNotifyPermission();
+            renderFasting();
+        }
+        function requestFastNotifyPermission() {
+            try { if (window.Notification && Notification.permission === 'default') Notification.requestPermission().then(() => renderFasting()); } catch (e) {}
+        }
+        function fastNotifyState() {
+            if (!window.Notification) return 'unsupported';
+            return Notification.permission;   // 'default' | 'granted' | 'denied'
+        }
+        function flashTitle(msg) {
+            const orig = window._origTitle || document.title; window._origTitle = orig;
+            if (window._titleFlash) clearInterval(window._titleFlash);
+            let on = false;
+            window._titleFlash = setInterval(() => { document.title = (on = !on) ? msg : orig; }, 1200);
+            const stop = () => { if (window._titleFlash) { clearInterval(window._titleFlash); window._titleFlash = null; } document.title = orig; window.removeEventListener('focus', stop); };
+            window.addEventListener('focus', stop);
+        }
+        function showFastToast(msg) {
+            let t = document.getElementById('fast-toast');
+            if (!t) { t = document.createElement('div'); t.id = 'fast-toast'; t.style.cssText = 'position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:9999; background:var(--success); color:#fff; padding:14px 18px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.35); font-weight:600; max-width:90vw;'; document.body.appendChild(t); }
+            t.innerHTML = `<span>${msg}</span> <span onclick="this.parentElement.remove()" style="cursor:pointer; margin-left:12px; opacity:.85;">✕</span>`;
+            t.style.display = 'block';
+        }
+        function fastBeep() {
+            try { const Ctx = window.AudioContext || window.webkitAudioContext; if (!Ctx) return; const a = new Ctx(); const o = a.createOscillator(), g = a.createGain(); o.connect(g); g.connect(a.destination); o.type = 'sine'; o.frequency.value = 880; g.gain.setValueAtTime(0.0001, a.currentTime); g.gain.exponentialRampToValueAtTime(0.12, a.currentTime + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.45); o.start(); o.stop(a.currentTime + 0.5); } catch (e) {}
+        }
+        function fireFastComplete(goalHours) {
+            // Best-effort OS notification (works on desktop; unreliable on iOS when backgrounded)
+            try { if (window.Notification && Notification.permission === 'granted') new Notification('Fast complete 🎉', { body: `You hit your ${goalHours}h goal — time to eat.`, tag: 'fast-complete' }); } catch (e) {}
+            // Reliable in-app signals
+            flashTitle('🎉 Fast complete — time to eat');
+            showFastToast(`🎉 Your ${goalHours}h fast is complete — time to eat!`);
+            fastBeep();
+        }
+        // Tab-independent watcher: fires once when an active fast crosses its goal, even if the
+        // Fasting tab is never opened. Granularity ~15s is plenty for a meal reminder.
+        function checkFastGoal() {
+            const f = appData && appData.fasting;
+            if (!f || !f.activeStart || f.remindOnEnd === false) return;   // default on unless explicitly off
+            const goalMs = (f.goalHours || 18) * 3600000;
+            if (Date.now() - new Date(f.activeStart).getTime() >= goalMs && f.goalNotifiedFor !== f.activeStart) {
+                f.goalNotifiedFor = f.activeStart;
+                saveData(appData);
+                fireFastComplete(f.goalHours);
+                renderFasting();
+            }
+        }
+        function ensureFastWatcher() {
+            if (!window._fastWatcher) window._fastWatcher = setInterval(checkFastGoal, 15000);
+            checkFastGoal();
+        }
         function addManualFast() {
             const sv = document.getElementById('fast-start').value;
             const ev = document.getElementById('fast-end').value;
@@ -4965,6 +5031,21 @@
         function renderFasting() {
             const f = ensureFasting();
             const goalEl = document.getElementById('fast-goal'); if (goalEl) goalEl.value = f.goalHours;
+            const remindEl = document.getElementById('fast-remind'); if (remindEl) remindEl.checked = !!f.remindOnEnd;
+            const noteEl = document.getElementById('fast-remind-note');
+            if (noteEl) {
+                if (!f.remindOnEnd) noteEl.textContent = '';
+                else {
+                    const st = fastNotifyState();
+                    noteEl.textContent = st === 'granted'
+                        ? "You'll get an in-app alert and a device notification when your goal is reached."
+                        : st === 'denied'
+                            ? "Device notifications are blocked — you'll still get an in-app alert while the app is open."
+                            : st === 'unsupported'
+                                ? "You'll get an in-app alert when your goal is reached (this device doesn't support notifications)."
+                                : "You'll get an in-app alert; allow notifications to also get one on your device (best on desktop; iOS must be installed to Home Screen).";
+                }
+            }
             renderFastPresets();
             renderFastStats();
             const active = document.getElementById('fasting-active');
@@ -5239,7 +5320,8 @@
             updateStats();
             if (!appData.prBests) appData.prBests = snapshotPRs();  // baseline; no toast on first load
             renderDashboard();
-            selectDay(1);
+            selectDay(todaysTrainingDay() || 1);
+            ensureFastWatcher();                      // start the fast-complete reminder watcher
         }
 
         // ============ FIREBASE CLOUD SYNC ============
@@ -5283,6 +5365,7 @@
             // One-time: move the old 16h default up to the new 18:6 default. Flag keeps it from
             // ever re-bumping a goal the user later sets back to 16 on purpose.
             if (!d._fastDefault18) { if (d.fasting.goalHours === 16 || d.fasting.goalHours == null) d.fasting.goalHours = 18; d._fastDefault18 = true; }
+            if (d.fasting.remindOnEnd === undefined) d.fasting.remindOnEnd = true;   // fast-complete reminder on by default
             d.journal     = d.journal     || [];
             d.perfectWeeks = d.perfectWeeks || [];
             d.supersets   = d.supersets   || {};
