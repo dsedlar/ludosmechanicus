@@ -1416,9 +1416,13 @@
                 <div class="section-title"><div class="section-icon"><i class="ti ti-clock"></i></div>Fasting</div>
                 <div class="info-box">Tap Start when you begin your fast and End when you break it — the app logs the length and labels it (Intermittent &lt;24h / Prolonged ≥24h).</div>
                 <div id="fasting-active"></div>
-                <div style="margin-top:16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                    <label style="font-size:13px; color:var(--text-secondary);">Goal (hours):</label>
-                    <input type="number" id="fast-goal" min="1" max="72" style="width:90px;" onchange="setFastGoal(this.value)">
+                <div style="margin-top:16px;">
+                    <div style="font-size:13px; color:var(--text-secondary); margin-bottom:8px;">Protocol:</div>
+                    <div id="fast-presets" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;"></div>
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <label style="font-size:13px; color:var(--text-secondary);">Custom goal (hours):</label>
+                        <input type="number" id="fast-goal" min="1" max="72" step="0.5" style="width:90px;" onchange="setFastGoal(this.value)">
+                    </div>
                 </div>
             </div>
             <div class="section">
@@ -4780,21 +4784,63 @@
             document.getElementById('fast-end').value = '';
             showMessage('fast-manual-message', 'success', `✓ Logged a ${hours}h fast (${hours >= 24 ? 'Prolonged' : 'Intermittent'}).`);
         }
+        // Common intermittent-fasting protocols (fast:eat split). OMAD = one meal a day.
+        const FAST_PRESETS = [
+            { label: '16:8', h: 16 }, { label: '18:6', h: 18 }, { label: '20:4', h: 20 },
+            { label: 'OMAD', h: 23 }, { label: '36h', h: 36 }
+        ];
+        function fastProtocolLabel(h) {
+            const p = FAST_PRESETS.find(p => p.h === h);
+            if (p) return p.label;
+            return h < 24 ? `${h}:${24 - h}` : `${h}h`;
+        }
+        function renderFastPresets() {
+            const host = document.getElementById('fast-presets'); if (!host) return;
+            const g = ensureFasting().goalHours;
+            host.innerHTML = FAST_PRESETS.map(p => {
+                const on = p.h === g;
+                return `<button onclick="setFastGoal(${p.h})" style="padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:600; font-size:14px; border:1px solid ${on ? 'var(--accent)' : 'var(--border)'}; background:${on ? 'var(--accent)' : 'var(--bg-hover)'}; color:${on ? '#fff' : 'var(--text-primary)'};">${p.label}</button>`;
+            }).join('');
+        }
         function setFastGoal(v) { const f = ensureFasting(); f.goalHours = parseFloat(v) || 16; saveData(appData); renderFasting(); }
         function deleteFast(i) { const f = ensureFasting(); f.log.splice(i, 1); saveData(appData); renderFasting(); }
         function fastingStreak() { return dayStreak((ensureFasting().log || []).map(l => l.date)); }
 
+        // Progress → color: red (just started) → amber → green (goal reached), then a bright
+        // teal-green once you push past goal. Mirrors the week-completion color ramp.
+        function fastColor(ratio) {
+            if (ratio >= 1) return 'hsl(152, 70%, 45%)';            // goal met / exceeded — vivid green
+            return `hsl(${Math.round(ratio * 120)}, 68%, 48%)`;     // 0 = red → 1 = green
+        }
         function updateFastElapsed() {
             const f = ensureFasting(); if (!f.activeStart) return;
             const el = document.getElementById('fasting-elapsed'); if (!el) return;
+            const goalMs = f.goalHours * 3600000;
             const ms = new Date() - new Date(f.activeStart);
             const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000), s = Math.floor((ms % 60000) / 1000);
             el.textContent = `${h}h ${m}m ${s}s`;
-            const bar = document.getElementById('fasting-bar'); if (bar) bar.style.width = Math.min(100, (ms / 3600000) / f.goalHours * 100) + '%';
+            const ratio = ms / goalMs;
+            const col = fastColor(ratio);
+            const bar = document.getElementById('fasting-bar');
+            if (bar) { bar.style.width = Math.min(100, ratio * 100) + '%'; bar.style.background = col; }
+            const rem = document.getElementById('fasting-remaining');
+            if (rem) {
+                const left = goalMs - ms;
+                if (left > 0) {
+                    const rh = Math.floor(left / 3600000), rm = Math.floor((left % 3600000) / 60000);
+                    rem.textContent = `${rh}h ${rm}m left to your ${f.goalHours}h goal`;
+                    rem.style.color = col;
+                } else {
+                    const over = -left, oh = Math.floor(over / 3600000), om = Math.floor((over % 3600000) / 60000);
+                    rem.textContent = `🎉 Goal reached — ${oh}h ${om}m past ${f.goalHours}h`;
+                    rem.style.color = col;
+                }
+            }
         }
         function renderFasting() {
             const f = ensureFasting();
             const goalEl = document.getElementById('fast-goal'); if (goalEl) goalEl.value = f.goalHours;
+            renderFastPresets();
             const active = document.getElementById('fasting-active');
             if (window.fastingInterval) { clearInterval(window.fastingInterval); window.fastingInterval = null; }
             if (active) {
@@ -4805,11 +4851,12 @@
                                 <button class="btn-secondary" onclick="saveFastStart()" style="padding:4px 10px;">Save</button>
                                 <button class="btn-secondary" onclick="cancelFastStart()" style="padding:4px 10px;">Cancel</button>
                            </div>`
-                        : `<div style="font-size:12px; color:var(--text-secondary);">Fasting since ${new Date(f.activeStart).toLocaleString()} <a onclick="editFastStart()" style="color:var(--accent); cursor:pointer; margin-left:6px; white-space:nowrap;">✎ Edit start</a></div>`;
+                        : `<div style="font-size:12px; color:var(--text-secondary);">${fastProtocolLabel(f.goalHours)} · goal ${f.goalHours}h · since ${new Date(f.activeStart).toLocaleString()} <a onclick="editFastStart()" style="color:var(--accent); cursor:pointer; margin-left:6px; white-space:nowrap;">✎ Edit start</a></div>`;
                     active.innerHTML = `<div style="background:var(--bg-hover); border-left:3px solid var(--accent); border-radius:0 10px 10px 0; padding:16px;">
                         ${sinceLine}
                         <div style="font-family:'Space Grotesk', sans-serif; font-size:30px; font-weight:700; color:var(--primary); margin:6px 0;" id="fasting-elapsed">—</div>
-                        <div style="background:var(--bg-card); border-radius:6px; height:8px; overflow:hidden; margin-bottom:12px;"><div id="fasting-bar" style="height:100%; width:0%; background:var(--grad);"></div></div>
+                        <div id="fasting-remaining" style="font-size:13px; font-weight:600; margin-bottom:10px; color:var(--text-secondary);">—</div>
+                        <div style="background:var(--bg-card); border-radius:6px; height:8px; overflow:hidden; margin-bottom:12px;"><div id="fasting-bar" style="height:100%; width:0%; background:var(--grad); transition:width .5s, background .5s;"></div></div>
                         <button class="btn-primary" onclick="endFast()">End fast</button>
                         <button class="btn-secondary" onclick="cancelFast()" style="margin-left:8px;">Cancel</button>
                     </div>`;
@@ -4830,7 +4877,10 @@
                     const di = (id, val) => `<input id="${id}" type="datetime-local" value="${toLocalInput(val)}" style="background:var(--bg-hover); border:1px solid var(--accent); color:var(--text-primary); border-radius:4px; padding:4px 6px;">`;
                     return `<tr><td>${di('fast-edit-start', l.start)}</td><td>${di('fast-edit-end', l.end)}</td><td>—</td><td>${l.goal || f.goalHours}h</td><td style="white-space:nowrap;">${actionBtn(`saveFastRow(${i})`, 'ti-check', 'Save', 'var(--success)')}${actionBtn('cancelFastRow()', 'ti-x', 'Cancel')}</td></tr>`;
                 }
-                return `<tr><td>${l.date}</td><td class="data-value">${l.hours}h</td><td>${l.type}</td><td>${l.hours >= (l.goal || f.goalHours) ? '<span style="color:var(--success);">✓</span>' : '—'}</td><td style="white-space:nowrap;">${actionBtn(`editFastRow(${i})`, 'ti-pencil', 'Edit')}<button class="delete-btn" onclick="deleteFast(${i})">Delete</button></td></tr>`;
+                const goal = l.goal || f.goalHours;
+                const met = l.hours >= goal;
+                const col = met ? 'var(--success)' : 'var(--accent-power)';
+                return `<tr style="border-left:3px solid ${col};"><td>${l.date}</td><td class="data-value" style="color:${col}; font-weight:700;">${l.hours}h</td><td>${l.type}</td><td>${fastProtocolLabel(goal)} ${met ? '<span style="color:var(--success);">✓</span>' : '<span style="color:var(--text-secondary);">—</span>'}</td><td style="white-space:nowrap;">${actionBtn(`editFastRow(${i})`, 'ti-pencil', 'Edit')}<button class="delete-btn" onclick="deleteFast(${i})">Delete</button></td></tr>`;
             }).join('');
             updateStats();
         }
