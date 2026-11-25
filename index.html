@@ -2943,68 +2943,6 @@
             setTimeout(closeGolfModal, 850);
         }
 
-        function addGrintRound() {
-            const date = document.getElementById('grint-date').value;
-            const course = document.getElementById('grint-course').value;
-            const location = document.getElementById('grint-location').value;
-            const rating = parseFloat(document.getElementById('grint-rating').value) || 0;
-            const score = parseFloat(document.getElementById('grint-score').value);
-            const par = parseFloat(document.getElementById('grint-par').value) || 72;
-            const slope = parseFloat(document.getElementById('grint-slope').value) || 0;
-            const putts = parseFloat(document.getElementById('grint-putts').value) || 0;
-            const girPct = parseFloat(document.getElementById('grint-gir-pct').value) || 0;
-            const accuracy = parseFloat(document.getElementById('grint-accuracy').value) || 0;
-            const weather = document.getElementById('grint-weather').value;
-            const condition = document.getElementById('grint-condition').value;
-            const energy = parseFloat(document.getElementById('grint-energy').value) || 0;
-            const roundType = document.getElementById('grint-type').value;
-            const notes = document.getElementById('grint-notes').value;
-            const play = document.getElementById('grint-play').value;
-            const temp = parseFloat(document.getElementById('grint-temp').value) || 0;
-            const swingImprovements = grintSwing.slice();
-            const struggles = grintStruggles.slice();
-
-            if (!date || !course || !score) {
-                showMessage('import-message', 'error', 'Date, course, and score required');
-                return;
-            }
-
-            saveGolfRound({
-                date, course, location, rating, slope, score, par,
-                putts, girPct, accuracy, weather, condition, energy, roundType,
-                notes, play, temp, swingImprovements, struggles,
-                lat: selectedCourseCoords ? selectedCourseCoords.lat : null,
-                lon: selectedCourseCoords ? selectedCourseCoords.lon : null
-            });
-
-            // Clear form
-            document.getElementById('grint-date').value = '';
-            document.getElementById('grint-course').value = '';
-            document.getElementById('grint-location').value = '';
-            document.getElementById('grint-score').value = '';
-            document.getElementById('grint-rating').value = '';
-            document.getElementById('grint-slope').value = '';
-            document.getElementById('grint-par').value = '';
-            document.getElementById('grint-putts').value = '';
-            document.getElementById('grint-gir-pct').value = '';
-            document.getElementById('grint-accuracy').value = '';
-            document.getElementById('grint-notes').value = '';
-            document.getElementById('grint-play').value = '';
-            document.getElementById('grint-temp').value = '';
-            document.getElementById('grint-weather').value = '';
-            document.getElementById('grint-condition').value = '';
-            document.getElementById('grint-energy').value = '';
-            grintSwing = []; grintStruggles = [];
-            renderChips('swing'); renderChips('struggles');
-            setWeatherStatus('');
-            selectedCourseCoords = null;
-            currentTees = []; lastTeeCourse = ''; populateTeeSelect(); setTeeStatus('');
-
-            renderAllGolfTable();
-            updateStats();
-            showMessage('import-message', 'success', `Grint round logged! (${score}, ${course})`);
-        }
-
         // Populate the Course Name dropdown: your own courses + any live search results
         let courseSearchResults = [];        // [{name, location}] from the last OSM search
         const courseSearchLocations = {};    // name(lower) -> location
@@ -3133,35 +3071,8 @@
             if (sl) loc.value = sl;
         }
 
-        // ----- Round notes (chips) + weather auto-fill -----
-        const SWING_OPTIONS = ['Driver / tee shots', 'Iron play', 'Wedges / short game', 'Putting', 'Chipping', 'Bunker play', 'Tempo / rhythm', 'Ball striking', 'Course management', 'Mental game / focus', 'Alignment / setup', 'Distance control'];
-        const STRUGGLE_OPTIONS = ['Driver accuracy', 'Slice', 'Hook', 'Iron consistency', 'Putting / 3-putts', 'Short game', 'Bunker play', 'Distance control', 'Tempo / rushing', 'Mental game / focus', 'Course management', 'Fatigue', 'First-tee nerves'];
-        let grintSwing = [], grintStruggles = [], selectedCourseCoords = null;
-
-        function populateGolfSelects() {
-            const fill = (id, opts, ph) => { const s = document.getElementById(id); if (!s) return; s.innerHTML = `<option value="">${ph}</option>` + opts.map(o => `<option>${escHtml(o)}</option>`).join(''); };
-            fill('grint-swing-select', SWING_OPTIONS, 'Add an improvement…');
-            fill('grint-struggles-select', STRUGGLE_OPTIONS, 'Add a struggle…');
-        }
-
-        function addChip(group, sel) {
-            const val = sel.value; sel.value = '';
-            if (!val) return;
-            const arr = group === 'swing' ? grintSwing : grintStruggles;
-            if (!arr.includes(val)) arr.push(val);
-            renderChips(group);
-        }
-        function removeChip(group, val) {
-            if (group === 'swing') grintSwing = grintSwing.filter(v => v !== val);
-            else grintStruggles = grintStruggles.filter(v => v !== val);
-            renderChips(group);
-        }
-        function renderChips(group) {
-            const arr = group === 'swing' ? grintSwing : grintStruggles;
-            const el = document.getElementById(group === 'swing' ? 'grint-swing-chips' : 'grint-struggles-chips');
-            if (!el) return;
-            el.innerHTML = arr.map(v => `<span class="chip">${escHtml(v)}<span class="chip-x" onclick="removeChip('${group}', '${v.replace(/'/g, "\\'")}')">×</span></span>`).join('');
-        }
+        // ----- Weather auto-fill + selected-course coordinates -----
+        let selectedCourseCoords = null;
 
         function setWeatherStatus(msg) { const el = document.getElementById('grint-weather-status'); if (el) el.textContent = msg; }
 
