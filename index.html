@@ -639,7 +639,7 @@
             </div>
             <div class="stat-card" onclick="openSegment('strength')">
                 <div class="stat-label">Strength Days</div>
-                <div class="stat-value"><span id="strength-days">0/4</span><span class="trend-arrow" id="strength-arrow"></span></div>
+                <div class="stat-value"><span id="strength-days">0/6</span><span class="trend-arrow" id="strength-arrow"></span></div>
                 <div class="stat-change" id="strength-change">This week</div>
             </div>
             <div class="stat-card" onclick="openSegment('cardio')">
@@ -714,7 +714,7 @@
 
                 <div style="font-family:'Space Grotesk', sans-serif; font-weight:600; color:var(--text-primary); margin:22px 0 8px; font-size:16px; border-top:1px solid var(--border); padding-top:18px;">Reset Strength</div>
                 <div class="info-box" style="margin-bottom:16px;">
-                    Start the 4-day strength program over from a fresh <strong>Week 1</strong>. Clears your current week, all week history, progression (level-ups) and strength PRs. Your superset tweaks stay, and golf / sleep / cardio / reading / fasting / body data are <strong>not</strong> touched. A local backup is saved first.
+                    Start the 6-day microdosing strength program over from a fresh <strong>Week 1</strong>. Clears your current week, all week history, progression (level-ups) and strength PRs. Your superset tweaks stay, and golf / sleep / cardio / reading / fasting / body data are <strong>not</strong> touched. A local backup is saved first.
                 </div>
                 <button class="btn-secondary" onclick="resetStrengthToWeek1()" style="border-color:var(--accent-power); color:var(--accent-power);"><i class="ti ti-refresh-alert" style="margin-right:6px;"></i>Reset strength to Week 1</button>
                 <div id="reset-message" style="margin-top:12px;"></div>
@@ -922,18 +922,13 @@
                     </div>
                 </div>
                 <div class="info-box">
-                    Click an exercise to log weight. Mark complete when done. Next week auto-generates with progression when you finish all 4 days.
+                    Microdosing: 6 short (~15 min) sessions a week — high load, low volume, never to failure. Click an exercise to log weight, mark complete when done. Next week auto-generates with progression when you finish your sessions.
                 </div>
             </div>
 
             <!-- Day Selector -->
             <div class="section">
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px;">
-                    <button class="day-selector-btn active" onclick="selectDay(1)">Day 1<br><span style="font-size: 11px; color: var(--text-secondary);">Lower</span></button>
-                    <button class="day-selector-btn" onclick="selectDay(2)">Day 2<br><span style="font-size: 11px; color: var(--text-secondary);">Upper</span></button>
-                    <button class="day-selector-btn" onclick="selectDay(3)">Day 3<br><span style="font-size: 11px; color: var(--text-secondary);">Core</span></button>
-                    <button class="day-selector-btn" onclick="selectDay(4)">Day 4<br><span style="font-size: 11px; color: var(--text-secondary);">Full</span></button>
-                </div>
+                <div id="day-selector" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 8px; margin-bottom: 20px;"></div>
             </div>
 
             <!-- Workout Display -->
@@ -2083,62 +2078,71 @@
         }
 
         // ============ PRE-BUILT WORKOUT SYSTEM ============
+        // ---- MICRODOSING STRENGTH PROGRAM ----
+        // 6 short (~15 min) sessions/week, golf-power biased. Microdosing = the week's volume
+        // spread into frequent short doses: high load, LOW volume per session, trained OFTEN,
+        // and NEVER to failure (keep ~2+ reps in reserve). Power/rotational speed is the quality
+        // that benefits most from microdosing (shortest residual, most fatigue-sensitive) so it
+        // shows up on 4 of 6 days. Heavier strength is front-loaded early in the week; the crisp,
+        // low-fatigue power doses sit later so your legs are fresh for weekend rounds.
+        // Each day is just 2–3 movements × 2–3 crisp sets — in and out in ~15 minutes.
         const WORKOUT_TEMPLATE = {
             day1: {
-                name: 'Day 1: Lower Focus',
-                type: 'lower',
+                name: 'Day 1: Lower Strength',
+                type: 'lower', short: 'Lower',
                 exercises: [
-                    { name: 'Trap Bar Jump', sets: 3, reps: '3', rpe: '8-9', cat: 'power' },
-                    { name: 'Rear-Foot-Elevated Split Squat (DB)', sets: 3, reps: '8 ea', rpe: '7-8', cat: 'strength' },
-                    { name: 'Goblet Squat', sets: 3, reps: '8-10', rpe: '7', cat: 'strength' },
-                    { name: 'Half-Kneeling Landmine Rotation', sets: 3, reps: '8-10 ea', rpe: '6-7', cat: 'core' },
-                    { name: 'Single-Arm Dumbbell Romanian Deadlift', sets: 3, reps: '8 ea', rpe: '7', cat: 'strength' },
-                    { name: 'Finisher: Sled Push', sets: 4, reps: '15-20m', rpe: '8', cat: 'finisher' },
-                    { name: 'Finisher: Med Ball Slam', sets: 4, reps: '8-10', rpe: '8', cat: 'finisher' }
+                    { name: 'Goblet Squat', sets: 3, reps: '5', rpe: '7-8', cat: 'strength', note: 'Keep the load honest — stop 2+ reps shy of failure' },
+                    { name: 'Trap Bar Jump', sets: 3, reps: '3', rpe: '8', cat: 'power', note: 'Fast and tall — full reset between reps' }
                 ]
             },
             day2: {
-                name: 'Day 2: Upper Power',
-                type: 'upper',
+                name: 'Day 2: Rotational Speed',
+                type: 'rotation', short: 'Rotation',
                 exercises: [
-                    { name: 'Med Ball Rotational Scoop Toss', sets: 4, reps: '5 ea', rpe: '8-9', cat: 'power' },
-                    { name: 'Medicine Ball Overhead Slam', sets: 3, reps: '6', rpe: '8-9', cat: 'power' },
-                    { name: 'DB Bench or Floor Press', sets: 3, reps: '8-10', rpe: '7-8', cat: 'strength' },
-                    { name: 'Single-Arm Dumbbell Row', sets: 3, reps: '8-10 ea', rpe: '7-8', cat: 'strength' },
-                    { name: 'Half-Kneeling Cable/Band Chop', sets: 3, reps: '10 ea', rpe: '6-7', cat: 'core' },
-                    { name: 'Pallof Press', sets: 3, reps: '10-12 ea', rpe: '6', cat: 'core' },
-                    { name: 'Finisher: Med Ball Chest Pass', sets: 4, reps: '8-10', rpe: '7', cat: 'finisher' },
-                    { name: 'Finisher: Farmer Carry', sets: 4, reps: '30-40m', rpe: '7', cat: 'finisher' }
+                    { name: 'Landmine Rotation (explosive)', sets: 3, reps: '5 ea', rpe: '8', cat: 'power', note: 'PRIMARY GOLF SWING DRIVER — max speed, no grind' },
+                    { name: 'Med Ball Rotational Slam', sets: 3, reps: '5 ea', rpe: '8', cat: 'power', note: 'Explosive through the hips' }
                 ]
             },
             day3: {
-                name: 'Day 3: Rotational Core',
-                type: 'core',
+                name: 'Day 3: Upper Strength',
+                type: 'upper', short: 'Upper',
                 exercises: [
-                    { name: 'Landmine Rotation (explosive)', sets: 4, reps: '6 ea', rpe: '8-9', cat: 'power', note: 'PRIMARY GOLF SWING DRIVER' },
-                    { name: 'Med Ball Rotational Slam', sets: 3, reps: '8 ea', rpe: '8-9', cat: 'power' },
-                    { name: 'Half-Kneeling Pallof Press', sets: 3, reps: '12 ea', rpe: '6', cat: 'core' },
-                    { name: 'Suitcase Carry (single-arm)', sets: 3, reps: '40-50m ea', rpe: '7', cat: 'carry' },
-                    { name: 'Dead Bug', sets: 3, reps: '30-45 sec', rpe: '6', cat: 'core' },
-                    { name: '90/90 Hip Stretch', sets: 2, reps: '45-60 sec ea', rpe: 'stretch', cat: 'mobility' },
-                    { name: 'Finisher: Battle Ropes', sets: 4, reps: '30 sec', rpe: '8', cat: 'finisher' },
-                    { name: 'Finisher: Sled Push', sets: 4, reps: '15-20m', rpe: '8', cat: 'finisher' }
+                    { name: 'DB Bench or Floor Press', sets: 3, reps: '5', rpe: '7-8', cat: 'strength', note: 'Heavy-ish, leave reps in the tank' },
+                    { name: 'Single-Arm Dumbbell Row', sets: 3, reps: '6 ea', rpe: '7-8', cat: 'strength' }
                 ]
             },
             day4: {
-                name: 'Day 4: Full Body Power',
-                type: 'full',
+                name: 'Day 4: Hinge & Single-Leg',
+                type: 'hinge', short: 'Hinge',
                 exercises: [
-                    { name: 'Trap Bar Jump', sets: 3, reps: '3', rpe: '8-9', cat: 'power' },
-                    { name: 'Med Ball Slam', sets: 3, reps: '5', rpe: '8-9', cat: 'power' },
-                    { name: 'Standing Landmine Rotation', sets: 3, reps: '10 ea', rpe: '7', cat: 'core' },
-                    { name: 'Overhead Dumbbell Carry', sets: 3, reps: '40m ea', rpe: '7', cat: 'carry' },
-                    { name: 'DB Single-Leg Romanian Deadlift', sets: 3, reps: '8 ea', rpe: '7-8', cat: 'strength' },
-                    { name: 'Finisher: Med Ball Slam', sets: 4, reps: '8-10', rpe: '8', cat: 'finisher' },
-                    { name: 'Finisher: Rowing', sets: 1, reps: '500m', rpe: '8', cat: 'finisher' }
+                    { name: 'DB Single-Leg Romanian Deadlift', sets: 2, reps: '6 ea', rpe: '7', cat: 'strength', note: 'Slow hips, feel the hamstring' },
+                    { name: 'Rear-Foot-Elevated Split Squat (DB)', sets: 2, reps: '6 ea', rpe: '7', cat: 'strength' }
+                ]
+            },
+            day5: {
+                name: 'Day 5: Rotational Power',
+                type: 'power', short: 'Power',
+                exercises: [
+                    { name: 'Med Ball Rotational Scoop Toss', sets: 3, reps: '5 ea', rpe: '8', cat: 'power', note: 'Drive off the trail leg — golf transfer' },
+                    { name: 'Standing Landmine Rotation', sets: 2, reps: '8 ea', rpe: '7', cat: 'core' },
+                    { name: 'Pallof Press', sets: 2, reps: '10 ea', rpe: '6', cat: 'core', note: 'Anti-rotation — stay tall, resist the twist' }
+                ]
+            },
+            day6: {
+                name: 'Day 6: Full-Body Power',
+                type: 'full', short: 'Full',
+                exercises: [
+                    { name: 'Trap Bar Jump', sets: 3, reps: '3', rpe: '8', cat: 'power', note: 'Crisp and fast — fresh legs for the weekend' },
+                    { name: 'Medicine Ball Overhead Slam', sets: 3, reps: '5', rpe: '8', cat: 'power' },
+                    { name: 'Suitcase Carry (single-arm)', sets: 2, reps: '30m ea', rpe: '7', cat: 'carry', note: 'Brace hard — resist leaning' }
                 ]
             }
         };
+
+        // Day keys + count are derived from the template so the whole strength
+        // system scales to any number of days (microdosing uses 6).
+        const DAY_KEYS = Object.keys(WORKOUT_TEMPLATE);
+        const NUM_DAYS = DAY_KEYS.length;
 
         // Generic full-body bodyweight routine (no equipment) — used when there's no weight room
         const BODYWEIGHT_TEMPLATE = [
@@ -2203,7 +2207,7 @@
                 completed: false
             };
 
-            ['day1', 'day2', 'day3', 'day4'].forEach(dayKey => {
+            DAY_KEYS.forEach(dayKey => {
                 const template = WORKOUT_TEMPLATE[dayKey];
                 week.days[dayKey] = {
                     name: template.name,
@@ -2227,13 +2231,20 @@
             return week;
         }
 
+        // Builds the Day 1..N selector buttons from the template so it tracks NUM_DAYS.
+        function renderDaySelector(activeDay) {
+            const host = document.getElementById('day-selector');
+            if (!host) return;
+            host.innerHTML = DAY_KEYS.map((dk, i) => {
+                const n = i + 1;
+                const t = WORKOUT_TEMPLATE[dk] || {};
+                const short = t.short || t.type || '';
+                return `<button class="day-selector-btn${n === activeDay ? ' active' : ''}" onclick="selectDay(${n})">Day ${n}<br><span style="font-size: 11px; color: var(--text-secondary);">${short}</span></button>`;
+            }).join('');
+        }
+
         function selectDay(dayNum) {
-            document.querySelectorAll('.day-selector-btn').forEach(btn => btn.classList.remove('active'));
-            // Find the button for this day and mark it active
-            const buttons = document.querySelectorAll('.day-selector-btn');
-            if (buttons[dayNum - 1]) {
-                buttons[dayNum - 1].classList.add('active');
-            }
+            renderDaySelector(dayNum);
             renderWorkout(dayNum);
         }
 
@@ -2301,7 +2312,7 @@
         function reconcileWeek(week) {
             if (!week || !week.days) return;
             if (week.progressed) return;   // progression has taken over this week — leave its variations/loads alone
-            ['day1', 'day2', 'day3', 'day4'].forEach(dk => {
+            DAY_KEYS.forEach(dk => {
                 const day = week.days[dk];
                 const tmpl = WORKOUT_TEMPLATE[dk];
                 if (!day || !tmpl) return;
@@ -2318,11 +2329,15 @@
         // Superset groups → colors (kept per day+exercise so they persist across weeks)
         const SUPERSET_COLORS = { A: '#3b82f6', B: '#f59e0b', C: '#14b8a6', D: '#a855f7', E: '#ec4899' };
         // Coach-designed default supersets (by exercise name); overridable per row.
+        // Microdosing: power/speed days are done with full rest (no supersets) to keep bar/ball
+        // speed high. Only the pure-strength pairing days superset, to fit the ~15-min window.
         const DEFAULT_SUPERSETS = {
-            day1: { 'Trap Bar Jump': 'A', 'Rear-Foot-Elevated Split Squat (DB)': 'A', 'Half-Kneeling Landmine Rotation': 'B', 'Single-Arm Dumbbell Romanian Deadlift': 'B' },
-            day2: { 'Med Ball Rotational Scoop Toss': 'A', 'Medicine Ball Overhead Slam': 'A', 'DB Bench or Floor Press': 'B', 'Single-Arm Dumbbell Row': 'B', 'Half-Kneeling Cable/Band Chop': 'C', 'Pallof Press': 'C' },
-            day3: { 'Landmine Rotation (explosive)': 'A', 'Med Ball Rotational Slam': 'A', 'Half-Kneeling Pallof Press': 'B', 'Suitcase Carry (single-arm)': 'B', 'Dead Bug': 'C', '90/90 Hip Stretch': 'C' },
-            day4: { 'Trap Bar Jump': 'A', 'Med Ball Slam': 'A', 'Standing Landmine Rotation': 'B', 'Overhead Dumbbell Carry': 'B' }
+            day1: {},
+            day2: {},
+            day3: { 'DB Bench or Floor Press': 'A', 'Single-Arm Dumbbell Row': 'A' },
+            day4: { 'DB Single-Leg Romanian Deadlift': 'A', 'Rear-Foot-Elevated Split Squat (DB)': 'A' },
+            day5: { 'Standing Landmine Rotation': 'B', 'Pallof Press': 'B' },
+            day6: {}
         };
         function supersetFor(dayKey, exName) {
             const u = appData.supersets && appData.supersets[dayKey] && appData.supersets[dayKey][exName];
@@ -2506,7 +2521,7 @@
         function renderWeekCompletion() {
             const week = appData.currentWeek;
             const completed = Object.values(week.days).filter(d => d.completed).length;
-            const total = 4;
+            const total = NUM_DAYS;
 
             const ratio = completed / total;
             const color = `hsl(${Math.round(ratio * 120)}, 65%, 48%)`;   // 0 = red → 4 = green
@@ -2575,7 +2590,7 @@
         function startNextWeek() {
             const cur = appData.currentWeek;
             const done = Object.values(cur.days).filter(d => d.completed).length;
-            if (!confirm(`Start Week ${cur.weekNum + 1}?\n\nThis week is saved to your history. Every exercise you completed progresses (more weight, and harder variations as you master them); anything you skipped holds for another try.\n\n(${done}/4 workouts logged this week.)`)) return;
+            if (!confirm(`Start Week ${cur.weekNum + 1}?\n\nThis week is saved to your history. Every exercise you completed progresses (more weight, and harder variations as you master them); anything you skipped holds for another try.\n\n(${done}/${NUM_DAYS} sessions logged this week.)`)) return;
 
             appData.weekHistory = appData.weekHistory || [];
             appData.weekHistory.push(cur);
@@ -2583,7 +2598,7 @@
 
             const next = generateWeek(cur.weekNum + 1);
             const levelUps = [];
-            ['day1', 'day2', 'day3', 'day4'].forEach(dk => {
+            DAY_KEYS.forEach(dk => {
                 const srcDay = cur.days[dk];
                 const srcList = srcDay.gymExercises ? srcDay.gymExercises : srcDay.exercises;   // logged gym data (even if on hotel/bodyweight)
                 next.days[dk].exercises.forEach((nx, idx) => {
@@ -2634,7 +2649,7 @@
         function clearThisWeek() {
             const cur = appData.currentWeek;
             if (!confirm(`Blank Week ${cur.weekNum}?\n\nThis clears your check-marks, logged sets, and weights so you start the week fresh. Your exercises (and any leveled-up variations) stay — nothing is archived or progressed.`)) return;
-            ['day1', 'day2', 'day3', 'day4'].forEach(dk => {
+            DAY_KEYS.forEach(dk => {
                 const day = cur.days[dk];
                 const wipe = ex => { ex.completed = false; ex.actualRpe = null; ex.weight = 0; ex.setLogs = []; };
                 (day.exercises || []).forEach(wipe);
@@ -3994,12 +4009,12 @@
             // ----- Strength: this week's days, trend vs last week, goal status -----
             const thisWeekStrength = (appData.currentWeek && appData.currentWeek.days) ?
                 Object.values(appData.currentWeek.days).filter(d => d && d.completed).length : 0;
-            document.getElementById('strength-days').textContent = `${thisWeekStrength}/4`;
+            document.getElementById('strength-days').textContent = `${thisWeekStrength}/${NUM_DAYS}`;
             const lwk = (appData.weekHistory || []).slice(-1)[0];
             const lastWeekDays = lwk ? Object.values(lwk.days || {}).filter(d => d && d.completed).length : null;
             trendArrow('strength-arrow', lastWeekDays == null ? null : (thisWeekStrength > lastWeekDays ? 'up' : thisWeekStrength < lastWeekDays ? 'down' : null), thisWeekStrength >= (lastWeekDays || 0));
             const sChange = document.getElementById('strength-change');
-            sChange.textContent = thisWeekStrength >= 4 ? 'Week complete 🎉' : thisWeekStrength >= 3 ? 'On track this week' : 'Below weekly target';
+            sChange.textContent = thisWeekStrength >= NUM_DAYS ? 'Week complete 🎉' : thisWeekStrength >= Math.ceil(NUM_DAYS * 0.6) ? 'On track this week' : 'Below weekly target';
             sChange.style.color = thisWeekStrength >= 3 ? 'var(--success)' : 'var(--warning)';
 
             // ----- Cardio: this-week sessions + trend vs last week -----
@@ -4211,7 +4226,7 @@
 
             const best = {};
             weeks.forEach(w => {
-                ['day1', 'day2', 'day3', 'day4'].forEach(dk => {
+                DAY_KEYS.forEach(dk => {
                     const day = w.days && w.days[dk];
                     if (!day || !day.exercises) return;
                     const list = day.gymExercises ? day.gymExercises.concat(day.exercises) : day.exercises;
@@ -4379,10 +4394,10 @@
 
         const SEGMENTS = {
             strength: {
-                title: 'Strength Days', icon: 'ti-barbell', type: 'bar', color: '#2563eb', yMin: 0, yMax: 4,
+                title: 'Strength Days', icon: 'ti-barbell', type: 'bar', color: '#2563eb', yMin: 0, yMax: NUM_DAYS,
                 data: () => strengthWeekly(),
-                kpis: () => { const w = strengthWeekly(); const total = w.values.reduce((a, b) => a + b, 0); const thisWeek = appData.currentWeek ? Object.values(appData.currentWeek.days || {}).filter(d => d && d.completed).length : 0; return [{ label: 'This week', value: thisWeek + '/4' }, { label: 'Total days', value: total }, { label: 'Best week', value: (w.values.length ? Math.max(...w.values) : 0) + '/4' }, { label: 'Weeks', value: w.values.length }]; },
-                story: () => { const w = strengthWeekly(); const total = w.values.reduce((a, b) => a + b, 0); const a = w.values.length ? (total / w.values.length).toFixed(1) : '0'; return `You've logged <strong>${total}</strong> strength day${total === 1 ? '' : 's'} across <strong>${w.values.length}</strong> week${w.values.length === 1 ? '' : 's'}, averaging <strong>${a}/4</strong> per week. ${a >= 3 ? 'Strong consistency — keep the engine running.' : 'Aim for 3–4 days a week to keep progression driving forward.'}`; }
+                kpis: () => { const w = strengthWeekly(); const total = w.values.reduce((a, b) => a + b, 0); const thisWeek = appData.currentWeek ? Object.values(appData.currentWeek.days || {}).filter(d => d && d.completed).length : 0; return [{ label: 'This week', value: thisWeek + '/' + NUM_DAYS }, { label: 'Total days', value: total }, { label: 'Best week', value: (w.values.length ? Math.max(...w.values) : 0) + '/' + NUM_DAYS }, { label: 'Weeks', value: w.values.length }]; },
+                story: () => { const w = strengthWeekly(); const total = w.values.reduce((a, b) => a + b, 0); const a = w.values.length ? (total / w.values.length).toFixed(1) : '0'; return `You've logged <strong>${total}</strong> strength day${total === 1 ? '' : 's'} across <strong>${w.values.length}</strong> week${w.values.length === 1 ? '' : 's'}, averaging <strong>${a}/${NUM_DAYS}</strong> per week. ${a >= Math.ceil(NUM_DAYS * 0.6) ? 'Strong consistency — keep the doses coming.' : 'Aim for 5–6 short sessions a week to keep progression driving forward.'}`; }
             },
             cardio: {
                 title: 'Cardio Sessions', icon: 'ti-run', type: 'bar', color: '#06b6d4', yMin: 0,
@@ -4543,7 +4558,7 @@
             (appData.weekHistory || []).forEach(w => weeks.push(w));
             weeks.sort((a, b) => a.weekNum - b.weekNum);
             const out = [];
-            weeks.forEach(w => ['day1', 'day2', 'day3', 'day4'].forEach(dk => {
+            weeks.forEach(w => DAY_KEYS.forEach(dk => {
                 const day = w.days && w.days[dk];
                 if (!day || !day.exercises) return;
                 day.exercises.forEach(ex => { if (ex.name === name && (parseFloat(ex.weight) || 0) > 0) out.push(parseFloat(ex.weight)); });
@@ -4937,7 +4952,7 @@
             const durRows = (appData.ouraApiData || []).filter(o => inWk(o.date) && o.sleepDuration > 0);
             const avgDur = durRows.length ? durRows.reduce((s, o) => s + o.sleepDuration, 0) / durRows.length : 0;
             const goals = [
-                { label: 'Strength', icon: 'ti-barbell', cur: strength, target: 4 },
+                { label: 'Strength', icon: 'ti-barbell', cur: strength, target: 5 },
                 { label: 'Cardio', icon: 'ti-run', cur: cardio, target: 2 },
                 { label: 'Fasts', icon: 'ti-clock', cur: fasts, target: 5 },
                 { label: 'Journaled', icon: 'ti-notebook', cur: journal, target: 7 },
