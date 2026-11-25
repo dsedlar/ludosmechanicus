@@ -1240,6 +1240,17 @@
 
             <div class="section">
                 <div class="section-title">
+                    <div class="section-icon"><i class="ti ti-upload"></i></div>
+                    Import Peloton CSV
+                </div>
+                <div class="info-box">On the Peloton website: <strong>Profile → Workouts → Download Workouts</strong>, then drop the CSV here. It's parsed entirely on your device — nothing is uploaded. Re-importing is safe: workouts you already have are skipped.</div>
+                <input type="file" id="peloton-file" accept=".csv,text/csv" onchange="pelotonFileChosen(this)" style="display:block; margin-bottom:12px;">
+                <div id="peloton-preview"></div>
+                <div id="peloton-import-msg" style="margin-top:10px;"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">
                     <div class="section-icon"><i class="ti ti-history"></i></div>
                     Cardio History
                 </div>
@@ -3868,6 +3879,113 @@
             });
             ['cardio-duration', 'cardio-intensity', 'cardio-distance', 'cardio-hr', 'cardio-calories', 'cardio-output', 'cardio-feel', 'cardio-energy', 'cardio-notes'].forEach(id => document.getElementById(id).value = '');
             showMessage('cardio-message', 'success', `✓ Cardio logged: ${duration} min ${type}`);
+        }
+
+        // ---- Peloton CSV import (client-side; maps each workout to a cardio entry) ----
+        // Minimal RFC-4180-ish CSV parser: handles quoted fields, embedded commas, "" escapes, CRLF.
+        function parseCsvRows(text) {
+            const rows = []; let row = [], field = '', i = 0, inQ = false;
+            text = text.replace(/^﻿/, '');   // strip BOM
+            while (i < text.length) {
+                const c = text[i];
+                if (inQ) {
+                    if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+                    else field += c;
+                } else {
+                    if (c === '"') inQ = true;
+                    else if (c === ',') { row.push(field); field = ''; }
+                    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+                    else if (c === '\r') { /* skip */ }
+                    else field += c;
+                }
+                i++;
+            }
+            if (field.length || row.length) { row.push(field); rows.push(row); }
+            return rows.filter(r => r.length && r.some(v => v !== ''));
+        }
+        const pelNum = v => { const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')); return isNaN(n) ? 0 : n; };
+        // Parse a Peloton "Download Workouts" CSV into cardio entries (keyed by header, so column order can shift).
+        function parsePelotonCSV(text) {
+            const rows = parseCsvRows(text);
+            if (rows.length < 2) return [];
+            const head = rows[0].map(h => h.trim().toLowerCase());
+            const col = name => head.indexOf(name.toLowerCase());
+            const idx = {
+                ts: col('Workout Timestamp'), live: col('Live/On-Demand'), instr: col('Instructor Name'),
+                len: col('Length (minutes)'), disc: col('Fitness Discipline'), type: col('Type'), title: col('Title'),
+                output: col('Total Output'), watts: col('Avg. Watts'), res: col('Avg. Resistance'), cad: col('Avg. Cadence (RPM)'),
+                speed: col('Avg. Speed (mph)'), dist: col('Distance (mi)'), cal: col('Calories Burned'), hr: col('Avg. Heartrate'),
+                incl: col('Avg. Incline'), pace: col('Avg. Pace (min/mi)')
+            };
+            if (idx.ts < 0 || idx.len < 0) return [];   // not a Peloton export
+            const get = (r, k) => (idx[k] >= 0 ? (r[idx[k]] || '').trim() : '');
+            const out = [];
+            for (let i = 1; i < rows.length; i++) {
+                const r = rows[i];
+                const ts = get(r, 'ts'); if (!ts) continue;
+                const date = ts.slice(0, 10);                       // "2026-06-14 16:30 (-04)" → "2026-06-14"
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+                const instr = get(r, 'instr'), title = get(r, 'title'), disc = get(r, 'disc');
+                out.push({
+                    date, type: 'peloton',
+                    duration: pelNum(get(r, 'len')),
+                    intensity: 0,
+                    distance: pelNum(get(r, 'dist')),
+                    hr: pelNum(get(r, 'hr')),
+                    calories: pelNum(get(r, 'cal')),
+                    output: pelNum(get(r, 'output')),
+                    feel: '', energyLevel: '',
+                    notes: [disc, instr, title].filter(Boolean).join(' · '),
+                    source: 'peloton', pelotonTs: ts,
+                    discipline: disc, instructor: instr, classTitle: title,
+                    avgWatts: pelNum(get(r, 'watts')), avgResistance: pelNum(get(r, 'res')),
+                    avgCadence: pelNum(get(r, 'cad')), avgSpeed: pelNum(get(r, 'speed')),
+                    avgIncline: pelNum(get(r, 'incl')), avgPace: get(r, 'pace')
+                });
+            }
+            return out;
+        }
+        let pelotonPending = [];
+        function pelotonFileChosen(input) {
+            const file = input.files && input.files[0];
+            const msg = document.getElementById('peloton-import-msg');
+            const prev = document.getElementById('peloton-preview');
+            pelotonPending = []; prev.innerHTML = ''; if (msg) msg.innerHTML = '';
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                let parsed;
+                try { parsed = parsePelotonCSV(String(e.target.result)); }
+                catch (err) { showMessage('peloton-import-msg', 'error', 'Could not read that file — is it the Peloton workouts CSV?'); return; }
+                if (!parsed.length) { showMessage('peloton-import-msg', 'error', "No workouts found. Make sure it's the Peloton 'Download Workouts' CSV."); return; }
+                const existing = new Set((appData.cardio || []).map(c => c.pelotonTs).filter(Boolean));
+                const fresh = parsed.filter(p => !existing.has(p.pelotonTs));
+                pelotonPending = fresh;
+                const dupes = parsed.length - fresh.length;
+                const sample = fresh.slice(0, 5).map(p =>
+                    `<tr><td>${p.date}</td><td>${p.duration}m</td><td>${p.discipline || '—'}</td><td>${p.output ? p.output + ' kJ' : '—'}</td><td>${p.calories || '—'} cal</td></tr>`).join('');
+                prev.innerHTML = `
+                    <div style="font-size:14px; margin-bottom:8px;">Found <strong>${parsed.length}</strong> workouts · <strong style="color:var(--success);">${fresh.length} new</strong>${dupes ? ` · <span style="color:var(--text-secondary);">${dupes} already logged</span>` : ''}.</div>
+                    ${fresh.length ? `<table class="data-table" style="margin-bottom:12px;"><thead><tr><th>Date</th><th>Len</th><th>Discipline</th><th>Output</th><th>Calories</th></tr></thead><tbody>${sample}</tbody></table>
+                    ${fresh.length > 5 ? `<div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">…and ${fresh.length - 5} more.</div>` : ''}
+                    <button class="btn-primary" onclick="pelotonDoImport()">Import ${fresh.length} workout${fresh.length === 1 ? '' : 's'}</button>`
+                    : `<div style="color:var(--text-secondary);">Everything in this file is already logged — nothing to import.</div>`}`;
+            };
+            reader.onerror = () => showMessage('peloton-import-msg', 'error', 'Could not read that file.');
+            reader.readAsText(file);
+        }
+        function pelotonDoImport() {
+            if (!pelotonPending.length) return;
+            appData.cardio = (appData.cardio || []).concat(pelotonPending);
+            appData.cardio.sort((a, b) => new Date(b.date) - new Date(a.date));
+            const n = pelotonPending.length;
+            pelotonPending = [];
+            flagNewPRs();
+            saveData(appData);
+            updateStats(); renderCardioHistory(); renderTrainingLog(); renderDashboard();
+            document.getElementById('peloton-preview').innerHTML = '';
+            const fi = document.getElementById('peloton-file'); if (fi) fi.value = '';
+            showMessage('peloton-import-msg', 'success', `✓ Imported ${n} Peloton workout${n === 1 ? '' : 's'} into your cardio log.`);
         }
 
         // Dashboard quick-entry: cardio (core fields; full detail still on the Cardio tab)
