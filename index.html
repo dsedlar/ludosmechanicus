@@ -1443,6 +1443,7 @@
             </div>
             <div class="section">
                 <div class="section-title"><div class="section-icon"><i class="ti ti-history"></i></div>Fasting History</div>
+                <div id="fasting-stats" style="margin-bottom:16px;"></div>
                 <table class="data-table"><thead><tr><th>Date</th><th>Length</th><th>Type</th><th>Goal</th><th>Action</th></tr></thead><tbody id="fasting-history"></tbody></table>
             </div>
         </div>
@@ -1591,7 +1592,7 @@
                 ouraApiData: [],
                 lastOuraSync: null,
                 books: [],
-                fasting: { activeStart: null, goalHours: 16, log: [] },
+                fasting: { activeStart: null, goalHours: 18, log: [] },
                 journal: [],
                 perfectWeeks: [],
                 supersets: {}
@@ -4454,7 +4455,7 @@
             fasting: {
                 title: 'Fasting', icon: 'ti-clock', type: 'bar', color: '#a855f7', yMin: 0,
                 data: () => { const log = (ensureFasting().log || []).filter(l => inRange(l.date)).slice().sort((a, b) => a.date.localeCompare(b.date)); return { labels: log.map(l => l.date), values: log.map(l => l.hours) }; },
-                kpis: () => { const log = (ensureFasting().log || []).filter(l => inRange(l.date)); const hrs = log.map(l => l.hours || 0); const total = hrs.reduce((a, b) => a + b, 0); return [{ label: 'Fasts', value: log.length }, { label: 'Avg', value: hrs.length ? (total / hrs.length).toFixed(1) + 'h' : '—' }, { label: 'Longest', value: hrs.length ? Math.max(...hrs).toFixed(1) + 'h' : '—' }, { label: 'Streak', value: fastingStreak() + 'd' }]; },
+                kpis: () => { const f = ensureFasting(); const log = (f.log || []).filter(l => inRange(l.date)); const hrs = log.map(l => l.hours || 0); const total = hrs.reduce((a, b) => a + b, 0); const met = log.filter(l => fastMet(l, f.goalHours)).length; return [{ label: 'Fasts', value: log.length }, { label: 'Avg', value: hrs.length ? (total / hrs.length).toFixed(1) + 'h' : '—' }, { label: 'Goals met', value: log.length ? `${met}/${log.length}` : '—' }, { label: 'Hit rate', value: log.length ? Math.round(met / log.length * 100) + '%' : '—' }, { label: 'Streak', value: fastingStreak() + 'd' }]; },
                 story: () => { const log = (ensureFasting().log || []).filter(l => inRange(l.date)); if (!log.length) return 'No fasts in this range — start a fast from the Dashboard or the Fasting tab.'; const hrs = log.map(l => l.hours || 0); const avg = hrs.reduce((a, b) => a + b, 0) / hrs.length; return `<strong>${log.length}</strong> fasts, averaging <strong>${avg.toFixed(1)}h</strong> (longest <strong>${Math.max(...hrs).toFixed(1)}h</strong>). ${avg >= 16 ? 'Solidly in the metabolic-benefit zone.' : 'Push toward 16h+ windows for the bigger metabolic payoff.'}`; }
             }
         };
@@ -4755,7 +4756,7 @@
         }
 
         // ============ FASTING ============
-        function ensureFasting() { appData.fasting = appData.fasting || { activeStart: null, goalHours: 16, log: [] }; return appData.fasting; }
+        function ensureFasting() { appData.fasting = appData.fasting || { activeStart: null, goalHours: 18, log: [] }; return appData.fasting; }
         function startFast() { const f = ensureFasting(); f.activeStart = new Date().toISOString(); saveData(appData); renderFasting(); renderDashboard(); }
         function endFast() {
             const f = ensureFasting(); if (!f.activeStart) return;
@@ -4802,9 +4803,32 @@
                 return `<button onclick="setFastGoal(${p.h})" style="padding:8px 14px; border-radius:8px; cursor:pointer; font-weight:600; font-size:14px; border:1px solid ${on ? 'var(--accent)' : 'var(--border)'}; background:${on ? 'var(--accent)' : 'var(--bg-hover)'}; color:${on ? '#fff' : 'var(--text-primary)'};">${p.label}</button>`;
             }).join('');
         }
-        function setFastGoal(v) { const f = ensureFasting(); f.goalHours = parseFloat(v) || 16; saveData(appData); renderFasting(); }
+        function setFastGoal(v) { const f = ensureFasting(); f.goalHours = parseFloat(v) || 18; saveData(appData); renderFasting(); }
         function deleteFast(i) { const f = ensureFasting(); f.log.splice(i, 1); saveData(appData); renderFasting(); }
         function fastingStreak() { return dayStreak((ensureFasting().log || []).map(l => l.date)); }
+        // Goal met/missed tracking. Each logged fast remembers the goal it ran against, so
+        // "met" = hours >= that goal. metStreak = consecutive most-recent fasts that hit goal.
+        function fastMet(l, fallbackGoal) { return (l.hours || 0) >= (l.goal || fallbackGoal); }
+        function fastingStats() {
+            const f = ensureFasting(), log = f.log || [];
+            const total = log.length;
+            let met = 0; log.forEach(l => { if (fastMet(l, f.goalHours)) met++; });
+            let metStreak = 0;
+            for (const l of log) { if (fastMet(l, f.goalHours)) metStreak++; else break; }
+            return { total, met, missed: total - met, pct: total ? Math.round(met / total * 100) : 0, metStreak };
+        }
+        function renderFastStats() {
+            const host = document.getElementById('fasting-stats'); if (!host) return;
+            const s = fastingStats();
+            if (!s.total) { host.innerHTML = '<span style="color:var(--text-secondary); font-size:13px;">No fasts logged yet — your goal hit-rate shows up here.</span>'; return; }
+            const chip = (label, val, col) => `<div style="flex:1; min-width:110px; background:var(--bg-hover); border:1px solid var(--border); border-radius:10px; padding:10px 12px;"><div style="font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--text-secondary);">${label}</div><div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:20px; color:${col || 'var(--text-primary)'};">${val}</div></div>`;
+            host.innerHTML = `<div style="display:flex; gap:10px; flex-wrap:wrap;">
+                ${chip('Goals met', `${s.met}/${s.total}`, 'var(--success)')}
+                ${chip('Hit rate', `${s.pct}%`, s.pct >= 80 ? 'var(--success)' : s.pct >= 50 ? '#eab308' : 'var(--accent-power)')}
+                ${chip('Missed', s.missed, s.missed ? 'var(--accent-power)' : 'var(--text-secondary)')}
+                ${chip('Met streak', `${s.metStreak} 🔥`, 'var(--success)')}
+            </div>`;
+        }
 
         // Progress → color: red (just started) → amber → green (goal reached), then a bright
         // teal-green once you push past goal. Mirrors the week-completion color ramp.
@@ -4841,6 +4865,7 @@
             const f = ensureFasting();
             const goalEl = document.getElementById('fast-goal'); if (goalEl) goalEl.value = f.goalHours;
             renderFastPresets();
+            renderFastStats();
             const active = document.getElementById('fasting-active');
             if (window.fastingInterval) { clearInterval(window.fastingInterval); window.fastingInterval = null; }
             if (active) {
@@ -5152,7 +5177,10 @@
             d.visceral    = d.visceral    || [];
             d.ouraApiData = d.ouraApiData || [];
             d.books       = d.books       || [];
-            d.fasting     = d.fasting     || { activeStart: null, goalHours: 16, log: [] };
+            d.fasting     = d.fasting     || { activeStart: null, goalHours: 18, log: [] };
+            // One-time: move the old 16h default up to the new 18:6 default. Flag keeps it from
+            // ever re-bumping a goal the user later sets back to 16 on purpose.
+            if (!d._fastDefault18) { if (d.fasting.goalHours === 16 || d.fasting.goalHours == null) d.fasting.goalHours = 18; d._fastDefault18 = true; }
             d.journal     = d.journal     || [];
             d.perfectWeeks = d.perfectWeeks || [];
             d.supersets   = d.supersets   || {};
