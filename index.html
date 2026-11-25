@@ -894,6 +894,7 @@
                     .pw-goals { width:100%; }
                 }
             </style>
+            <div id="today-briefing" class="section" style="margin:0 0 var(--gap) 0;"></div>
             <div class="dash-row">
                 <div class="section" style="margin:0;">
                     <div class="section-title"><div class="section-icon"><i class="ti ti-target"></i></div>Perfect Week</div>
@@ -5402,9 +5403,84 @@
         }
 
         function renderDashboard() {
+            renderTodayBriefing();
             renderPerfectWeek();
             renderQuickActions();
             renderJournal();
+        }
+
+        // Most recent Oura readiness row (prefers today's).
+        function todayReadiness() {
+            const rows = (appData.ouraApiData || []).filter(o => o.readiness > 0);
+            if (!rows.length) return null;
+            return rows.find(o => o.date === todayStr()) || rows.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
+        }
+        // A readiness-aware daily briefing: how recovered you are + what today's session is + fast status.
+        function renderTodayBriefing() {
+            const host = document.getElementById('today-briefing'); if (!host) return;
+            const h = new Date().getHours();
+            const greet = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+
+            // --- Readiness verdict (drives the training tone) ---
+            const r = todayReadiness();
+            let pill = '', readyGuide = '', tone = 'as planned';
+            if (r && r.readiness) {
+                const rz = r.readiness;
+                const col = rz >= 80 ? 'var(--success)' : rz >= 70 ? '#eab308' : 'var(--accent-power)';
+                const fresh = r.date === todayStr() ? '' : ` <span style="opacity:.7;">(${r.date})</span>`;
+                pill = `<span style="display:inline-block; font-weight:700; font-size:13px; color:#fff; background:${col}; padding:3px 10px; border-radius:999px;">Readiness ${rz}</span>${fresh}`;
+                tone = rz >= 80 ? 'attack it' : rz >= 70 ? 'as planned' : 'ease off';
+                readyGuide = rz >= 80 ? 'Recovered and primed — <strong>green light</strong> to chase bar/ball speed today.'
+                    : rz >= 70 ? 'Solid recovery — train as planned, crisp and submaximal.'
+                        : 'Running low — <strong>ease off</strong>: keep the doses short and well short of failure, or swap in mobility.';
+            } else {
+                readyGuide = 'Sync Oura to get a recovery-based read on how hard to push today.';
+            }
+
+            // --- Today's training ---
+            const dayNum = todaysTrainingDay();
+            const stale = currentProgramIsStale();
+            let trainLine;
+            if (stale) {
+                trainLine = `⚡ Load the new 6-day program on the <strong>Strength</strong> tab to see today's session.`;
+            } else if (!dayNum) {
+                trainLine = `🌙 <strong>Rest / reset day.</strong> Light mobility or a recovery spin if you feel like moving.`;
+            } else {
+                const sess = appData.currentWeek && appData.currentWeek.days['day' + dayNum];
+                const name = sess ? sess.name : 'Day ' + dayNum;
+                const done = sess && sess.completed;
+                trainLine = done
+                    ? `✅ <strong>${name}</strong> — done. Nice work.`
+                    : `🏋️ Today: <strong>${name}</strong> <span style="color:var(--text-secondary);">· ~15 min · ${tone}</span>`;
+            }
+
+            // --- Fasting status ---
+            const f = appData.fasting || {};
+            let fastLine = '';
+            if (f.activeStart) {
+                const ms = Date.now() - new Date(f.activeStart).getTime();
+                const goalMs = (f.goalHours || 18) * 3600000;
+                const elapsedH = (ms / 3600000).toFixed(1);
+                if (ms >= goalMs) {
+                    fastLine = `⏱️ Fasting <strong>${elapsedH}h</strong> — 🎉 past your ${f.goalHours}h goal, good to eat.`;
+                } else {
+                    const end = new Date(new Date(f.activeStart).getTime() + goalMs);
+                    const leftH = ((goalMs - ms) / 3600000).toFixed(1);
+                    fastLine = `⏱️ Fasting <strong>${elapsedH}h</strong> — ${leftH}h left, ends ${fmtFastEnd(end)}.`;
+                }
+            }
+
+            host.innerHTML = `
+                <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px;">
+                    <div class="section-icon"><i class="ti ti-sun"></i></div>
+                    <div style="font-weight:700; font-size:16px; color:var(--text-primary);">${greet}</div>
+                    ${pill}
+                </div>
+                <div style="font-size:14px; color:var(--text-primary); line-height:1.7;">
+                    <div>${trainLine}</div>
+                    <div style="color:var(--text-secondary); margin-top:2px;">${readyGuide}</div>
+                    ${fastLine ? `<div style="margin-top:6px;">${fastLine}</div>` : ''}
+                </div>`;
         }
 
         // ============ INITIALIZATION ============
@@ -5759,6 +5835,11 @@
             setSyncStatus('offline');
             showApp();
             init();
+        }
+
+        // Register the service worker (offline shell + faster loads). Non-blocking.
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
         }
 
         // Bootstrap
