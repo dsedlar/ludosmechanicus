@@ -4836,6 +4836,17 @@
             if (ratio >= 1) return 'hsl(152, 70%, 45%)';            // goal met / exceeded — vivid green
             return `hsl(${Math.round(ratio * 120)}, 68%, 48%)`;     // 0 = red → 1 = green
         }
+        // Friendly relative label for the projected end time: "today 2:08 PM", "tomorrow 9:00 AM".
+        function fmtFastEnd(d) {
+            const t = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            const d0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            const n = new Date(); const n0 = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+            const diff = Math.round((d0 - n0) / 86400000);
+            if (diff === 0) return `today ${t}`;
+            if (diff === 1) return `tomorrow ${t}`;
+            if (diff === -1) return `yesterday ${t}`;
+            return `${d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} ${t}`;
+        }
         function updateFastElapsed() {
             const f = ensureFasting(); if (!f.activeStart) return;
             const el = document.getElementById('fasting-elapsed'); if (!el) return;
@@ -4847,6 +4858,8 @@
             const col = fastColor(ratio);
             const bar = document.getElementById('fasting-bar');
             if (bar) { bar.style.width = Math.min(100, ratio * 100) + '%'; bar.style.background = col; }
+            const endEl = document.getElementById('fasting-endtime');
+            if (endEl) { const end = new Date(new Date(f.activeStart).getTime() + goalMs); endEl.innerHTML = `🎯 ${f.goalHours}h goal ends <strong style="color:var(--text-primary);">${fmtFastEnd(end)}</strong>`; }
             const rem = document.getElementById('fasting-remaining');
             if (rem) {
                 const left = goalMs - ms;
@@ -4880,6 +4893,7 @@
                     active.innerHTML = `<div style="background:var(--bg-hover); border-left:3px solid var(--accent); border-radius:0 10px 10px 0; padding:16px;">
                         ${sinceLine}
                         <div style="font-family:'Space Grotesk', sans-serif; font-size:30px; font-weight:700; color:var(--primary); margin:6px 0;" id="fasting-elapsed">—</div>
+                        <div id="fasting-endtime" style="font-size:13px; color:var(--text-secondary); margin-bottom:2px;">—</div>
                         <div id="fasting-remaining" style="font-size:13px; font-weight:600; margin-bottom:10px; color:var(--text-secondary);">—</div>
                         <div style="background:var(--bg-card); border-radius:6px; height:8px; overflow:hidden; margin-bottom:12px;"><div id="fasting-bar" style="height:100%; width:0%; background:var(--grad); transition:width .5s, background .5s;"></div></div>
                         <button class="btn-primary" onclick="endFast()">End fast</button>
